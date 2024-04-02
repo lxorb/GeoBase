@@ -10,6 +10,8 @@ const port = 3000
 const uri = 'mongodb://alessioc42.duckdns.org:27017'
 const db_name = 'geobase'
 const session_secret_key = 'your-secret-key'
+const emailRegex = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/i;
+const passwordRegex = /^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*|[a-zA-Z0-9]*)$/;
 
 const client = new MongoClient(uri);
 
@@ -64,6 +66,25 @@ async function companyExists(company_id, res) {
   }
 }
 
+async function checkEmail(email, res) {
+  if (await users.findOne({ email: email }) !== null) {
+    res.status(409).send('Email already in use')
+    return false;
+  }
+  if (emailRegex.test(email)) {
+    return true;
+  } else {
+    res.status(400).send('Invalid email')
+    return false;
+  }
+}
+
+async function checkPasssword(password, res) {
+  if (passwordRegex.test(password)) {
+    res.status(400).send('Invalid password')
+    return false;
+  }
+}
 
 app.get('/api', async (req, res) => {
   res.send('やった、GeoBase APIが動いてる！')
@@ -157,6 +178,13 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
     res.status(404).send('Storypoint not found')
     return
   }
+  spnt = {
+    id: spnt._id,
+    created_at: spnt.created_at,
+    title: spnt.title,
+    coords: spnt.coords,
+    description: spnt.description
+  }
   res.json({"storypoint": spnt})
 })
 
@@ -197,12 +225,16 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
     res.status(403).send('User not part of company')
     return
   }
-  const usr = await users.findOne({ _id: new ObjectId(req.params.user_id), company_id: new ObjectId(req.params.company_id) })
+  let usr = await users.findOne({ _id: new ObjectId(req.params.user_id), company_id: new ObjectId(req.params.company_id) })
   if (usr === null) {
     res.status(404).send('User not found')
     return
   }
-  // TODO: only send specific information
+  usr = {
+    id: usr._id,
+    fullname: usr.fullname,
+    email: usr.email
+  }
   res.json({"user": usr})
 })
 
@@ -227,6 +259,7 @@ app.post('/api/company/:company_id/storypoints', async (req, res) => {
     created_at: await getUnixTime(),
     company_id: new ObjectId(req.params.company_id),
     coords: req.body["storypoint"].coords,
+    title: req.body["storypoint"].title ? req.body["storypoint"].title : req.body["storypoint"].coords.toString(),
     description: req.body["storypoint"].description ? req.body["storypoint"].description : '',
     images: undefined,
     history: undefined,
@@ -257,6 +290,12 @@ app.post('/api/company/:company_id/users', async (req, res) => {
     res.status(409).send('User with this email already exists')
     return
   }
+  if (!checkEmail(req.body["user"].email, res)) {
+    return
+  }
+  if (!checkPasssword(req.body["user"].password, res)) {
+    return
+  }
   const usr = {
     created_at: await getUnixTime(),
     company_id: new ObjectId(req.params.company_id),
@@ -285,12 +324,16 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
     res.status(403).send('User not part of company')
     return
   }
-  const spnt = await storypoints.findOne({ _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) })
+  let spnt = await storypoints.findOne({ _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) })
   if (spnt === null) {
     res.status(404).send('Storypoint not found')
     return
   }
-  // TODO: make only specific fields editable
+  spnt = {
+    ...spnt,
+    title: req.body["storypoint"].title ? req.body["storypoint"].title : spnt.title,
+    description: req.body["storypoint"].description ? req.body["storypoint"].description : spnt.description
+  }
   await storypoints.updateOne(
     { _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) },
     { $set: spnt }
@@ -311,15 +354,29 @@ app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
     res.status(403).send('User not part of company')
     return
   }
-  const usr = await users.findOne({ _id: new ObjectId(req.params.user_id), company_id: new ObjectId(req.params.company_id) })
+  let usr = await users.findOne({ _id: new ObjectId(req.params.user_id), company_id: new ObjectId(req.params.company_id) })
   if (usr === null) {
     res.status(404).send('User not found')
     return
   }
-  // TODO: make only specific fields editable
-  // password needs to be hashed when edited !!
+  if (req.body["user"].email) {
+    if (!checkEmail(req.body["user"].email, res)) {
+      return
+    }
+    usr.email = req.body["user"].email
+  }
+  if (req.body["user"].password) {
+    if (!checkPasssword(req.body["user"].password, res)) {
+      return
+    }
+    usr.password = hashPassword(req.body["user"].password)
+  }
+  usr = {
+    ...usr,
+    fullname: req.body["user"].fullname ? req.body["user"].fullname : usr.fullname
+  }
   await users.updateOne(
-    { _id: new ObjectId(req.params.user_id), company_id: new ObjectId(req.params.company_id) },
+    { _id: new ObjectId(req.params.user_id) },
     { $set: usr }
   )
   res.send('User updated')
