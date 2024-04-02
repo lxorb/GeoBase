@@ -20,7 +20,7 @@ const storypoints = db.collection('storypoints');
 app.use(session({
   secret: session_secret_key,
   resave: false,
-  saveUninitialized: false
+  saveUninitialized: true
 }));
 
 
@@ -63,17 +63,32 @@ async function companyExists(company_id, res) {
 
 
 app.get('/api', async (req, res) => {
-  res.send('Hello World!')
+  res.send('やった、GeoBase APIが動いてる！')
 })
 
 // user login via email and password
-app.get('/api/login', async (req, res) => {
-  // TODO
+app.post('/api/login', async (req, res) => {
+  const usr = await users.findOne({ email : req.body["user"].email })
+  if (usr === null) {
+    res.status(404).send('User not found')
+    return
+  }
+  if (!await comparePasswords(req.body["user"].password, usr.password)) {
+    res.status(401).send('Incorrect password')
+    return
+  }
+  req.session.user_id = usr._id
+  res.send('User logged in')
 })
 
 // user login via email and password
-app.get('/api/logout', async (req, res) => {
-  // TODO
+app.post('/api/logout', async (req, res) => {
+  if (!req.session.user_id) {
+    res.status(401).send('User not logged in')
+    return
+  }
+  req.session.destroy()
+  res.send('User logged out')
 })
 
 // get base data of companies storypoints
@@ -140,7 +155,10 @@ app.post('/api/company/:company_id/storypoints', async (req, res) => {
   if (!companyExists(req.params.company_id, res)) {
     return
   }
-  // TODO: validate that coords are unique within company
+  if (await storypoints.findOne({ company_id: new ObjectId(req.params.company_id), coords: req.body["storypoint"].coords }) !== null) {
+    res.status(409).send('Storypoint with these coordinates already exists')
+    return
+  }
   const spnt = {
     created_at: await getUnixTime(),
     company_id: new ObjectId(req.params.company_id),
@@ -163,7 +181,10 @@ app.post('/api/company/:company_id/users', async (req, res) => {
   if (!companyExists(req.params.company_id, res)) {
     return
   }
-  // TODO: validate that email is unique
+  if (await users.findOne({ company_id: new ObjectId(req.params.company_id), email: req.body["user"].email }) !== null) {
+    res.status(409).send('User with this email already exists')
+    return
+  }
   const usr = {
     created_at: await getUnixTime(),
     company_id: new ObjectId(req.params.company_id),
@@ -208,6 +229,7 @@ app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
     return
   }
   // TODO: make only specific fields editable
+  // password needs to be hashed when edited !!
   await users.updateOne(
     { _id: new ObjectId(req.params.user_id), company_id: new ObjectId(req.params.company_id) },
     { $set: usr }
