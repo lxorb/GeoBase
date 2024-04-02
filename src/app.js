@@ -1,6 +1,7 @@
 const express = require('express')
 const session = require('express-session');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 const bcrypt = require('bcrypt');
 const { MongoClient, ObjectId } = require('mongodb');
 
@@ -24,6 +25,7 @@ app.use(session({
   saveUninitialized: true
 }));
 app.use(express.json());
+app.use(cors());
 
 async function hashPassword(password) {
   const saltRounds = 10
@@ -92,6 +94,20 @@ app.post('/api/logout', async (req, res) => {
   res.send('User logged out')
 })
 
+// get user data
+app.get('/api/user', async (req, res) => {
+  if (!req.session.user_id) {
+    res.status(401).send('User not logged in')
+    return
+  }
+  const usr = await users.findOne({ _id: req.session.user_id })
+  if (usr === null) {
+    res.status(404).send('User not found')
+    return
+  }
+  res.json({"user": usr})
+})
+
 // get base data of companies storypoints
 app.get('/api/company/:company_id/storypoints', async (req, res) => {
   if (!companyExists(req.params.company_id, res)) {
@@ -148,6 +164,7 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
     res.status(404).send('User not found')
     return
   }
+  // TODO: only send specific information
   res.json({"user": usr})
 })
 
