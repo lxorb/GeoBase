@@ -3,6 +3,7 @@
     "jwt_secret": "mysecret",
     "enable_email_validation": true,
     "enable_password_validation": true,
+    "enable_filename_validation": true,
     "enable_cors": true,
     "save_uninitialized_sessions": true,
     "resave_sessions": false,
@@ -15,6 +16,8 @@
         "users_collection": "users",
         "storypoints_collection": "storypoints",
         "token_blacklist_collection": "jwt_token_blacklist",
+        "fsgrid_files_collection": "fs.files",
+        "fsgrid_chunk_collection": "fs.chunks",
         "use_authentication": false
     },
     "fuseOptions": {

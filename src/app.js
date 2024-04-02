@@ -11,6 +11,7 @@ const fs = require('fs');
 const app = express()
 const emailRegex = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/i;
 const passwordRegex = /^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*|[a-zA-Z0-9]*)$/;
+const filenameRegex = /^[\w\-. ]+$/;
 
 const client = new MongoClient(config.get('mongodb.uri'));
 client.connect()
@@ -21,8 +22,12 @@ const companies = db.collection(config.get('mongodb.companies_collection'));
 const users = db.collection(config.get('mongodb.users_collection'));
 const storypoints = db.collection(config.get('mongodb.storypoints_collection'));
 const jwt_token_blacklist = db.collection(config.get('mongodb.token_blacklist_collection'));
+const files = db.collection(config.get('mongodb.fsgrid_files_collection'));
 
-const bucket = new GridFSBucket(db);
+const bucket = new GridFSBucket(db, {
+  bucketName: config.get('mongodb.fsgrid_files_collection'),
+  chunkCollectionName: config.get('mongodb.fsgrid_chunk_collection')
+})
 
 if (!fs.existsSync(config.get('uploads_dir'))) {
   fs.mkdirSync(config.get('uploads_dir'));
@@ -63,16 +68,31 @@ async function companyExists(company_id, res) {
   try {
     company = await companies.findOne({ _id: new ObjectId(company_id) });
   } catch (error) {
-    console.log('Error finding document by ID: ', error);
+    console.log('Error finding company by ID: ', error);
     res.status(500).send('Error finding company');
     return false
   }
-  if (company !== null) {
-    return true;
-  } else {
+  if (company === null) {
     res.status(404).send('Company not found');
     return false
+  } 
+  return true
+}
+
+async function storypointExists(company_id, res) {
+  let storypoint;
+  try {
+    storypoint = await storypoints.findOne({ _id: new ObjectId(company_id) });
+  } catch (error) {
+    console.log('Error finding storypoint by ID: ', error);
+    res.status(500).send('Error finding storypoint');
+    return false
   }
+  if (storypoint === null) {
+    res.status(404).send('Storypoint not found');
+    return false
+  }
+  return true
 }
 
 async function checkEmail(email, res) {
@@ -90,6 +110,14 @@ async function checkEmail(email, res) {
 async function checkPasssword(password, res) {
   if (config.get('enable_password_validation') && passwordRegex.test(password)) {
     res.status(400).send('Invalid password')
+    return false;
+  }
+  return true;
+}
+
+async function checkFilename(filename, res) {
+  if (config.get('enable_filename_validation') && !filenameRegex.test(filename)) {
+    res.status(400).send('Invalid filename')
     return false;
   }
   return true;
@@ -527,37 +555,174 @@ app.delete('/api/company/:company_id/users/:user_id', async (req, res) => {
   res.send('User deleted')
 })
 
+// Get Storypoint file list
+app.get('/api/company/:company_id/storypoints/:storypoint_id/files', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  const spnt = await storypoints.findOne({ _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) })
+  if (spnt === null) {
+    res.status(404).send('Storypoint not found')
+    return
+  }
+  const fileIds = spnt.files
+  let sptnFiles = await files.find({ _id: { $in: fileIds } }).toArray()
+  sptnFiles = sptnFiles.map(file => {
+    return {
+      id: file._id,
+      filename: file.filename,
+      created_by: file.created_by
+    }
+  })
+  res.json({ "files": sptnFiles })
+})
 
+// Upload file to Storypoint files
+app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.single('file'), async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await storypointExists(req.params.storypoint_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  if (await files.findOne({ filename: req.file.originalname, storypoint_id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id)})) {
+    res.status(409).send('File with that name already exists at the specified storypoint')
+    return
+  }
 
-
-
-// Handle file upload
-app.post('/api/company/:company_id/storypoints/:storypoint_id/file/:filename', upload.single('file'), async (req, res) => {
-  const bucket = new GridFSBucket(db);
+  if (!(await checkFilename(req.file.originalname, res))) {
+    return
+  }
 
   const readStream = fs.createReadStream(req.file.path);
-  const uploadStream = bucket.openUploadStream(`${company_id}/${storypoint_id}/${req.file.originalname}`);
-
-  readStream.pipe(uploadStream);
+  const uploadStream = bucket.openUploadStream(req.file.originalname);
 
   uploadStream.on('finish', () => {
-    fs.unlinkSync(req.file.path); // Delete temporary file
+    fs.unlinkSync(req.file.path);
+    const fileId = uploadStream.id;
+
+    files.updateOne({ _id: fileId }, {$set: 
+      { 
+        storypoint_id: req.params.storypoint_id,
+        company_id: req.params.company_id,
+        created_by: req.user._id
+      } 
+    });
+
+    storypoints.updateOne(
+      { _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) },
+      { $push: { files: fileId } }
+    )
+
     res.send('File uploaded successfully');
   });
 
   uploadStream.on('error', () => {
     res.status(500).send('Error uploading file');
   });
+
+  readStream.pipe(uploadStream);
 });
 
-// Download file by filename from Storypoint
-app.get('/api/company/:company_id/storypoints/:storypoint_id/file/:filename', (req, res) => {
-  const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
+// Download file from Storypoint files
+app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await storypointExists(req.params.storypoint_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  if (!(await files.findOne({ _id: new ObjectId(req.params.file_id), storypoint_id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id)}))) {
+    res.status(404).send('File not found at this storypoint')
+    return
+  }
+  const downloadStream = bucket.openDownloadStream(new ObjectId(req.params.file_id))
+
+  downloadStream.on('error', () => {
+    res.status(500).send('Error downloading file');
+  });
+
   downloadStream.pipe(res);
 });
+
+// Delete file from Storypoint files
+app.delete('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await storypointExists(req.params.storypoint_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  if (!(await files.findOne({ _id: new ObjectId(req.params.file_id), storypoint_id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id)}))) {
+    res.status(404).send('File not found at this storypoint')
+    return
+  }
+  await files.deleteOne({ _id: new ObjectId(req.params.file_id) })
+  await storypoints.updateOne(
+    { _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) },
+    { $pull: { files: new ObjectId(req.params.file_id) } }
+  )
+  res.send('File deleted')
+});
+
+// Rename file from Storypoint files
+app.put('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/rename', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await storypointExists(req.params.storypoint_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  if (await files.findOne({ filename: req.body["file"].filename, storypoint_id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id)})) {
+    res.status(409).send('File with that name already exists at the specified storypoint')
+    return
+  }
+  if (!(await checkFilename(req.body["file"].filename, res))) {
+    return
+  }
+  await files.updateOne(
+    { _id: new ObjectId(req.params.file_id) },
+    { $set: { filename: req.body["file"].filename } }
+  )
+  res.send('File renamed')
+})
 
 
 app.listen(config.get('port'), () => {
   console.log(`GeoBase listening on port ${config.get('port')}!`)
 })
-
