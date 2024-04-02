@@ -2,7 +2,6 @@ const express = require('express')
 const session = require('express-session');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
-const crypto = require('crypto');
 const config = require('config');
 const { MongoClient, ObjectId } = require('mongodb');
 
@@ -11,7 +10,10 @@ const emailRegex = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|
 const passwordRegex = /^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*|[a-zA-Z0-9]*)$/;
 
 const client = new MongoClient(config.get('mongodb.uri'));
-
+console.log(config.get('mongodb.uri'))
+client.connect()
+.then(() => { console.log('Connected to MongoDB') })
+.catch((error) => { console.error('Error connecting to MongoDB: ', error) });
 const db = client.db(config.get('mongodb.db_name'));
 const companies = db.collection(config.get('mongodb.companies_collection'));
 const users = db.collection(config.get('mongodb.users_collection'));
@@ -136,7 +138,7 @@ app.get('/api/user', async (req, res) => {
 
 // get base data of companies storypoints
 app.get('/api/company/:company_id/storypoints', async (req, res) => {
-  if (!companyExists(req.params.company_id, res)) {
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!req.session.user_id) {
@@ -161,7 +163,7 @@ app.get('/api/company/:company_id/storypoints', async (req, res) => {
 
 // get full data of company storypoint
 app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
-  if (!companyExists(req.params.company_id, res)) {
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!req.session.user_id) {
@@ -190,7 +192,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
 
 // get base data of all company users
 app.get('/api/company/:company_id/users', async (req, res) => {
-  if (!companyExists(req.params.company_id, res)) {
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!req.session.user_id) {
@@ -214,7 +216,7 @@ app.get('/api/company/:company_id/users', async (req, res) => {
 
 // get company user
 app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
-  if (!companyExists(req.params.company_id, res)) {
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!req.session.user_id) {
@@ -240,7 +242,7 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
 
 // add company storypoint
 app.post('/api/company/:company_id/storypoints', async (req, res) => {
-  if (!companyExists(req.params.company_id, res)) {
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!req.session.user_id) {
@@ -275,7 +277,7 @@ app.post('/api/company/:company_id/storypoints', async (req, res) => {
 
 // add company user
 app.post('/api/company/:company_id/users', async (req, res) => {
-  if (!companyExists(req.params.company_id, res)) {
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!req.session.user_id) {
@@ -313,7 +315,7 @@ app.post('/api/company/:company_id/users', async (req, res) => {
 
 // edit company storypoint
 app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
-  if (!companyExists(req.params.company_id, res)) {
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!req.session.user_id) {
@@ -344,7 +346,7 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
 
 // edit company user
 app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
-  if (!companyExists(req.params.company_id, res)) {
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!req.session.user_id) {

@@ -12,6 +12,7 @@
         "db_name": "geobase",
         "companies_collection": "companies",
         "users_collection": "users",
-        "storypoints_collection": "storypoints"
+        "storypoints_collection": "storypoints",
+        "use_authentication": false
     }
 }
