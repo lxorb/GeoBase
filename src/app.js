@@ -1,5 +1,6 @@
 const express = require('express')
 const session = require('express-session');
+const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const { MongoClient, ObjectId } = require('mongodb');
 
@@ -22,7 +23,7 @@ app.use(session({
   resave: false,
   saveUninitialized: true
 }));
-
+app.use(express.json());
 
 async function hashPassword(password) {
   const saltRounds = 10
