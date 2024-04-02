@@ -18,6 +18,15 @@ You need to have mongodb set up and running or reference an external mongodb-ser
 npm run dev
 ```
 
+For production, use:
+
+```bash
+npm run prod
+```
+
+Feel free to configure those commands to your needs.
+When exposing the backend, it's important to utilize encryption via SSL/TLS to protect user data and prevent potential data leaks.
+
 ### Configuration
 
 GeoBase comes with standard configuration values, which can be found in `config/default.json`. However, you may need to customize these values according to your specific requirements. To do so, follow these steps:
