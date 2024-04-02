@@ -27,5 +27,8 @@
             "coords",
             "description"
         ]
+    },
+    "fuseSearchOptions": {
+        "limit": 15
     }
 }

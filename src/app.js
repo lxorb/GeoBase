@@ -240,7 +240,7 @@ app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
   }
   const spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
   const fuse = new Fuse(spnts, config.get('fuseOptions'))
-  const result = fuse.search(req.query.q)
+  const result = fuse.search(req.query.q, config.get('fuseSearchOptions'))
   res.json({"storypoints": result})
 })
 
