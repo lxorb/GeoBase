@@ -147,11 +147,11 @@ app.get('/api/user', async (req, res) => {
 
 // get base data of companies storypoints
 app.get('/api/company/:company_id/storypoints', async (req, res) => {
-  if (!(await companyExists(req.params.company_id, res))) {
-    return
-  }
   if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
@@ -171,11 +171,11 @@ app.get('/api/company/:company_id/storypoints', async (req, res) => {
 
 // get full data of company storypoint
 app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
-  if (!(await companyExists(req.params.company_id, res))) {
-    return
-  }
   if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
@@ -200,11 +200,11 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
 
 // get base data of all company users
 app.get('/api/company/:company_id/users', async (req, res) => {
-  if (!(await companyExists(req.params.company_id, res))) {
-    return
-  }
   if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
@@ -224,11 +224,11 @@ app.get('/api/company/:company_id/users', async (req, res) => {
 
 // get company user
 app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
-  if (!(await companyExists(req.params.company_id, res))) {
-    return
-  }
   if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
@@ -250,11 +250,11 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
 
 // add company storypoint
 app.post('/api/company/:company_id/storypoints', async (req, res) => {
-  if (!(await companyExists(req.params.company_id, res))) {
-    return
-  }
   if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
@@ -325,11 +325,11 @@ app.post('/api/company/:company_id/users', async (req, res) => {
 
 // edit company storypoint
 app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
-  if (!(await companyExists(req.params.company_id, res))) {
-    return
-  }
   if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
@@ -356,11 +356,11 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
 
 // edit company user
 app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
-  if (!(await companyExists(req.params.company_id, res))) {
-    return
-  }
   if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
