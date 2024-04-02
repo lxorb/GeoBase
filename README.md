@@ -28,9 +28,19 @@ GeoBase comes with standard configuration values, which can be found in `config/
 ```json
 {
   "port": 9999,
-  "resave_sessions": true
+  "jwt_secret": "my_new_secret"
 }
 ```
+
+### Specifying a jwt secret
+
+You have already seen how to modify the config depending on your needs. We strongly recommend to change the jwt secret. To do so, run the following command:
+
+```bash
+gpg --armor --gen-random 2 32
+```
+
+Copy stdout to your clipboard and adjust the config-file. You're ready to go now!
 
 ### Final word
 

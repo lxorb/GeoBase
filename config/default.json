@@ -5,8 +5,6 @@
     "enable_password_validation": true,
     "enable_filename_validation": true,
     "enable_cors": true,
-    "save_uninitialized_sessions": true,
-    "resave_sessions": false,
     "bcrypt_salt_rounds": 10,
     "uploads_dir": "uploads/",
     "mongodb": {
