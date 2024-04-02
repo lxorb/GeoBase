@@ -163,6 +163,21 @@ async function blacklistJWT(token) {
   await jwt_token_blacklist.insertOne({ token: token })
 }
 
+async function calculateDistance(coordsA, coordsB) {
+  const R = 6371; // earth radius in km
+  const [latA, lonA] = coordsA;
+  const [latB, lonB] = coordsB;
+  const dLat = (latB - latA) * (Math.PI / 180);
+  const dLon = (lonB - lonA) * (Math.PI / 180); 
+  const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(latA * (Math.PI / 180)) * Math.cos(latB * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+  return distance; // in km
+}
+
 async function saveImageThumbnail(file_id, width, height) {
   const downloadStream = bucket.openDownloadStream(new ObjectId(file_id))
   const thumbnailPath = `${config.get('temp_dir')}/${file_id}.thumbnail`
@@ -275,7 +290,7 @@ app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
   }
   const spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
   const fuse = new Fuse(spnts, config.get('fuseOptions'))
-  const result = fuse.search(req.query.q, config.get('fuseSearchOptions'))
+  let result = fuse.search(req.query.q, config.get('fuseSearchOptions'))
   // simplify results
   result = result.map(spnt => {
     return {
@@ -286,6 +301,8 @@ app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
   })
   res.json({"storypoints": result})
 })
+
+// TODO: get nearby company storypoints
 
 // get full data of company storypoint
 app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
