@@ -301,7 +301,34 @@ app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
   res.json({"storypoints": result})
 })
 
-// TODO: get nearby company storypoints
+// calculate nearby company storypoints
+app.get('/api/company/:company_id/storypoints/nearby', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  let spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
+  spnts = spnts.map(spnt => {
+    const distance = calculateDistance(req.query.coords, spnt.coords)
+    return {
+      id: spnt._id,
+      title: spnt.title,
+      coords: spnt.coords,
+      distanceInKm: distance,
+      distanceString: distance >= 1 ? `${distance.toFixed(1)} km` : `${Math.floor(distance * 1000)} m`
+    }
+  })
+  spnts.sort((a, b) => a.distanceInKm - b.distanceInKm)
+  spnts = spnts.slice(0, config.get('nearby_search_storypoints_limit'))
+  spnts.filter(spnt => spnt.distanceInKm <= config.get('nearby_search_storypoints_radius_km'))
+  res.json({"storypoints": spnts})
+})
 
 // get full data of company storypoint
 app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {

@@ -8,6 +8,8 @@
     "bcrypt_salt_rounds": 10,
     "uploads_dir": "uploads/",
     "temp_dir": "temp/",
+    "nearby_search_storypoints_radius_km": 50,
+    "nearby_search_storypoints_limit": 15,
     "mongodb": {
         "uri": "mongodb://localhost:27017",
         "db_name": "geobase",
