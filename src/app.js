@@ -145,7 +145,6 @@ app.get('/api/user', async (req, res) => {
     res.status(401).send('User not logged in')
     return
   }
-  console.log("USER: "+req.user._id)
   let usr = await users.findOne({ _id: new ObjectId(req.user._id) })
   if (usr === null) {
     res.status(404).send('User not found')
@@ -169,7 +168,7 @@ app.get('/api/company/:company_id/storypoints', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -193,7 +192,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -222,7 +221,7 @@ app.get('/api/company/:company_id/users', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -246,7 +245,7 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -272,7 +271,7 @@ app.post('/api/company/:company_id/storypoints', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -308,7 +307,7 @@ app.post('/api/company/:company_id/users', async (req, res) => {
     res.status(401).send('Current user not logged in')
     return
   }
-  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('Current user not part of company')
     return
   }
@@ -347,7 +346,7 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -378,7 +377,7 @@ app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
