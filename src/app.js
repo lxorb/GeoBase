@@ -100,10 +100,16 @@ app.get('/api/user', async (req, res) => {
     res.status(401).send('User not logged in')
     return
   }
-  const usr = await users.findOne({ _id: req.session.user_id })
+  let usr = await users.findOne({ _id: req.session.user_id })
   if (usr === null) {
     res.status(404).send('User not found')
     return
+  }
+  usr = {
+    id: usr._id,
+    fullname: usr.fullname,
+    email: usr.email,
+    company_id: usr.company_id
   }
   res.json({"user": usr})
 })
