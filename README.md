@@ -1,6 +1,7 @@
 # GeoBase
 
 Welcome to GeoBase, your go-to solution for geographical data handling. 
+GeoBase is the backend of [GeoStorage](https://github.com/alessioC42/GeoStorage).
 
 ### Getting Started
 
