@@ -3,8 +3,10 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const config = require('config');
-const { MongoClient, ObjectId } = require('mongodb');
+const { MongoClient, ObjectId, GridFSBucket } = require('mongodb');
 const Fuse = require('fuse.js')
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express()
 const emailRegex = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/i;
@@ -19,6 +21,16 @@ const companies = db.collection(config.get('mongodb.companies_collection'));
 const users = db.collection(config.get('mongodb.users_collection'));
 const storypoints = db.collection(config.get('mongodb.storypoints_collection'));
 const jwt_token_blacklist = db.collection(config.get('mongodb.token_blacklist_collection'));
+
+const bucket = new GridFSBucket(db);
+
+if (!fs.existsSync(config.get('uploads_dir'))) {
+  fs.mkdirSync(config.get('uploads_dir'));
+  console.log('Uploads directory created');
+} else {
+  console.log('Uploads directory already exists');
+}
+const upload = multer({ dest: config.get('uploads_dir') });
 
 
 app.use(express.json());
@@ -182,6 +194,24 @@ app.get('/api/company/:company_id/storypoints', async (req, res) => {
   res.json({"storypoints": spnts})
 })
 
+// search company storypoints
+app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  const spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
+  const fuse = new Fuse(spnts, config.get('fuseOptions'))
+  const result = fuse.search(req.query.q)
+  res.json({"storypoints": result})
+})
+
 // get full data of company storypoint
 app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
   if (!(await verifyJWT(req, res))) {
@@ -256,24 +286,6 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
     email: usr.email
   }
   res.json({"user": usr})
-})
-
-// search company storypoints
-app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
-  if (!(await verifyJWT(req, res))) {
-    return
-  }
-  if (!(await companyExists(req.params.company_id, res))) {
-    return
-  }
-  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
-    res.status(403).send('User not part of company')
-    return
-  }
-  const spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
-  const fuse = new Fuse(spnts, config.get('fuseOptions'))
-  const result = fuse.search(req.query.q)
-  res.json({"storypoints": result})
 })
 
 // add company storypoint
@@ -514,6 +526,36 @@ app.delete('/api/company/:company_id/users/:user_id', async (req, res) => {
   )
   res.send('User deleted')
 })
+
+
+
+
+
+// Handle file upload
+app.post('/api/company/:company_id/storypoints/:storypoint_id/file/:filename', upload.single('file'), async (req, res) => {
+  const bucket = new GridFSBucket(db);
+
+  const readStream = fs.createReadStream(req.file.path);
+  const uploadStream = bucket.openUploadStream(`${company_id}/${storypoint_id}/${req.file.originalname}`);
+
+  readStream.pipe(uploadStream);
+
+  uploadStream.on('finish', () => {
+    fs.unlinkSync(req.file.path); // Delete temporary file
+    res.send('File uploaded successfully');
+  });
+
+  uploadStream.on('error', () => {
+    res.status(500).send('Error uploading file');
+  });
+});
+
+// Download file by filename from Storypoint
+app.get('/api/company/:company_id/storypoints/:storypoint_id/file/:filename', (req, res) => {
+  const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
+  downloadStream.pipe(res);
+});
+
 
 app.listen(config.get('port'), () => {
   console.log(`GeoBase listening on port ${config.get('port')}!`)
