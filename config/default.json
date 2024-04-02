@@ -7,6 +7,7 @@
     "enable_cors": true,
     "bcrypt_salt_rounds": 10,
     "uploads_dir": "uploads/",
+    "temp_dir": "temp/",
     "mongodb": {
         "uri": "mongodb://localhost:27017",
         "db_name": "geobase",

@@ -6,6 +6,7 @@ const config = require('config');
 const { MongoClient, ObjectId, GridFSBucket } = require('mongodb');
 const Fuse = require('fuse.js')
 const multer = require('multer');
+const sharp = require('sharp');
 const fs = require('fs');
 
 if (config.get('jwt_secret') === 'mysecret') {
@@ -40,6 +41,13 @@ if (!fs.existsSync(config.get('uploads_dir'))) {
   console.log('Uploads directory already exists');
 }
 const upload = multer({ dest: config.get('uploads_dir') });
+
+if (!fs.existsSync(config.get('temp_dir'))) {
+  fs.mkdirSync(config.get('temp_dir'));
+  console.log('Temp directory created');
+} else {
+  console.log('Temp directory already exists');
+}
 
 
 app.use(express.json());
@@ -155,6 +163,33 @@ async function blacklistJWT(token) {
   await jwt_token_blacklist.insertOne({ token: token })
 }
 
+async function saveImageThumbnail(file_id, width, height) {
+  const downloadStream = bucket.openDownloadStream(new ObjectId(file_id))
+  const thumbnailPath = `${config.get('temp_dir')}/${file_id}.thumbnail`
+  const writeStream = fs.createWriteStream(thumbnailPath)
+
+  downloadStream.pipe(writeStream)
+
+  downloadStream.on('error', (error) => {
+    console.error('Error downloading file from GridFS: ', error);
+  });
+
+  writeStream.on('error', (error) => {
+    console.error('Error writing file to disk: ', error);
+  });
+
+  writeStream.on('finish', async () => {
+    try {
+      await sharp(thumbnailPath)
+          .resize(width, height)
+          .toFile(thumbnailPath);
+      return thumbnailPath;
+    } catch (error) {
+        console.error('Error generating image thumbnail: ', error);
+    }
+  })
+}
+
 
 app.get('/api', async (req, res) => {
   res.send('やった、GeoBase APIが動いてる!')
@@ -241,6 +276,14 @@ app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
   const spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
   const fuse = new Fuse(spnts, config.get('fuseOptions'))
   const result = fuse.search(req.query.q, config.get('fuseSearchOptions'))
+  // simplify results
+  result = result.map(spnt => {
+    return {
+      id: spnt.item._id,
+      title: spnt.item.title,
+      coords: spnt.item.coords
+    }
+  })
   res.json({"storypoints": result})
 })
 
@@ -267,7 +310,8 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
     created_by: spnt.created_by,
     title: spnt.title,
     coords: spnt.coords,
-    description: spnt.description
+    description: spnt.description,
+    history: spnt.history
   }
   res.json({"storypoint": spnt})
 })
@@ -343,9 +387,8 @@ app.post('/api/company/:company_id/storypoints', async (req, res) => {
     coords: req.body["storypoint"].coords,
     title: req.body["storypoint"].title ? req.body["storypoint"].title : req.body["storypoint"].coords.toString(),
     description: req.body["storypoint"].description ? req.body["storypoint"].description : '',
-    images: undefined,
-    history: undefined,
-    files: undefined,
+    history: [],
+    files: []
   }
   const insertRes = await storypoints.insertOne(spnt)
   const storypoint_id = insertRes.insertedId
@@ -460,7 +503,8 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
     ...spnt,
     title: req.body["storypoint"].title ? req.body["storypoint"].title : spnt.title,
     description: req.body["storypoint"].description ? req.body["storypoint"].description : spnt.description,
-    coords: req.body["storypoint"].coords ? req.body["storypoint"].coords : spnt.coords
+    coords: req.body["storypoint"].coords ? req.body["storypoint"].coords : spnt.coords,
+    history: req.body["storypoint"].history ? req.body["storypoint"].history : spnt.history
   }
   await storypoints.updateOne(
     { _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) },
