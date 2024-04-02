@@ -82,12 +82,14 @@ async function checkPasssword(password, res) {
 }
 
 async function verifyJWT(req, res) {
-  if (!req.headers["Authorization"]) {
+  console.log(req.headers);
+  if (!req.headers["authorization"]) {
     res.status(401).send('No auth token provided');
     return false;
   }
   try {
-    const decoded = jwt.verify(req.headers["Authorization"], config.get('jwt_secret'));
+    const relevantToken = (req.headers["authorization"]).replace('Bearer ', "");
+    const decoded = jwt.verify(relevantToken, config.get('jwt_secret'));
     req.user = decoded;
     return true;
   } catch (error) {
