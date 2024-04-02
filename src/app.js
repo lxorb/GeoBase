@@ -82,7 +82,6 @@ async function checkPasssword(password, res) {
 }
 
 async function verifyJWT(req, res) {
-  console.log(req.headers);
   if (!req.headers["authorization"]) {
     res.status(401).send('No auth token provided');
     return false;
@@ -135,7 +134,8 @@ app.get('/api/user', async (req, res) => {
     res.status(401).send('User not logged in')
     return
   }
-  let usr = await users.findOne({ _id: req.user._id })
+  console.log("USER: "+req.user._id)
+  let usr = await users.findOne({ _id: new ObjectId(req.user._id) })
   if (usr === null) {
     res.status(404).send('User not found')
     return
