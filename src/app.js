@@ -86,6 +86,10 @@ async function verifyJWT(req, res) {
     res.status(401).send('No auth token provided');
     return false;
   }
+  if (await jwt_token_blacklist.findOne({ token: req.headers["authorization"] }) !== null) {
+    res.status(401).send('Auth token blacklisted');
+    return false;
+  }
   try {
     const relevantToken = (req.headers["authorization"]).replace('Bearer ', "");
     const decoded = jwt.verify(relevantToken, config.get('jwt_secret'));
@@ -96,6 +100,13 @@ async function verifyJWT(req, res) {
     res.status(401).send('Invalid auth token');
     return false;
   }
+}
+
+async function blacklistJWT(token) {
+  if (await jwt_token_blacklist.findOne({ token: token }) !== null) {
+    return
+  }
+  await jwt_token_blacklist.insertOne({ token: token })
 }
 
 
@@ -124,7 +135,7 @@ app.post('/api/logout', async (req, res) => {
     res.status(401).send('User not logged in')
     return
   }
-  // TODO: invalidate token
+  await blacklistJWT(req.headers["authorization"].replace('Bearer ', ""))
   res.send('User logged out')
 })
 
