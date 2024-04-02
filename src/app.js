@@ -81,7 +81,7 @@ async function checkPasssword(password, res) {
 }
 
 async function verifyJWT(req, res) {
-  if (!token) {
+  if (!req.headers["Authorization"]) {
     res.status(401).send('No auth token provided');
     return false;
   }
