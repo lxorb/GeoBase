@@ -23,7 +23,7 @@ npm run dev
 GeoBase comes with standard configuration values, which can be found in `config/default.json`. However, you may need to customize these values according to your specific requirements. To do so, follow these steps:
 
 1. Create a new file at `config/local.json`.
-2. Specify the corresponding values you wish to overwrite in local.json.
+2. Specify the corresponding values you wish to overwrite in `config/local.json`.
 3. For example:
 ```json
 {
