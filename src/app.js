@@ -6,7 +6,7 @@ const { MongoClient } = require('mongodb');
 const app = express()
 const port = 3000
 const uri = 'mongodb://localhost:27017'
-const db_name = 'test'
+const db_name = 'geobase'
 const session_secret_key = 'your-secret-key'
 
 const client = new MongoClient(uri);
