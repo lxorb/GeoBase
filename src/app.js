@@ -299,7 +299,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
     res.status(403).send('User not part of company')
     return
   }
-  const spnt = await storypoints.findOne({ _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) })
+  let spnt = await storypoints.findOne({ _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) })
   if (spnt === null) {
     res.status(404).send('Storypoint not found')
     return
