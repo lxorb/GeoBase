@@ -292,10 +292,10 @@ app.post('/api/company/:company_id/users', async (req, res) => {
     res.status(409).send('User with this email already exists')
     return
   }
-  if (!checkEmail(req.body["user"].email, res)) {
+  if (!( await checkEmail(req.body["user"].email, res))) {
     return
   }
-  if (!checkPasssword(req.body["user"].password, res)) {
+  if (!(await checkPasssword(req.body["user"].password, res))) {
     return
   }
   const usr = {
@@ -303,7 +303,7 @@ app.post('/api/company/:company_id/users', async (req, res) => {
     company_id: new ObjectId(req.params.company_id),
     fullname: req.body["user"].fullname,
     email: req.body["user"].email ? req.body["user"].email : '',
-    password: hashPassword(req.body["user"].password),
+    password: await hashPassword(req.body["user"].password),
   }
   await users.insertOne(usr)
   await companies.updateOne(
@@ -363,16 +363,16 @@ app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
     return
   }
   if (req.body["user"].email) {
-    if (!checkEmail(req.body["user"].email, res)) {
+    if (!(await checkEmail(req.body["user"].email, res))) {
       return
     }
     usr.email = req.body["user"].email
   }
   if (req.body["user"].password) {
-    if (!checkPasssword(req.body["user"].password, res)) {
+    if (!(await checkPasssword(req.body["user"].password, res))) {
       return
     }
-    usr.password = hashPassword(req.body["user"].password)
+    usr.password = await hashPassword(req.body["user"].password)
   }
   usr = {
     ...usr,
