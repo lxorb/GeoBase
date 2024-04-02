@@ -4,6 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const config = require('config');
 const { MongoClient, ObjectId } = require('mongodb');
+const Fuse = require('fuse.js')
 
 const app = express()
 const emailRegex = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/i;
@@ -18,6 +19,7 @@ const companies = db.collection(config.get('mongodb.companies_collection'));
 const users = db.collection(config.get('mongodb.users_collection'));
 const storypoints = db.collection(config.get('mongodb.storypoints_collection'));
 const jwt_token_blacklist = db.collection(config.get('mongodb.token_blacklist_collection'));
+
 
 app.use(express.json());
 if (config.get('enable_cors')) {
@@ -254,6 +256,24 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
     email: usr.email
   }
   res.json({"user": usr})
+})
+
+// search company storypoints
+app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  const spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
+  const fuse = new Fuse(spnts, config.get('fuseOptions'))
+  const result = fuse.search(req.query.q)
+  res.json({"storypoints": result})
 })
 
 // add company storypoint

@@ -15,5 +15,15 @@
         "storypoints_collection": "storypoints",
         "token_blacklist_collection": "jwt_token_blacklist",
         "use_authentication": false
+    },
+    "fuseOptions": {
+        "isCaseSensitive": false,
+        "includeScore": false,
+        "shouldSort": true,
+        "keys": [
+            "title",
+            "coords",
+            "description"
+        ]
     }
 }
