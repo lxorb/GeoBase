@@ -13,6 +13,7 @@
         "companies_collection": "companies",
         "users_collection": "users",
         "storypoints_collection": "storypoints",
+        "token_blacklist_collection": "",
         "use_authentication": false
     }
 }

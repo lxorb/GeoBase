@@ -17,6 +17,7 @@ const db = client.db(config.get('mongodb.db_name'));
 const companies = db.collection(config.get('mongodb.companies_collection'));
 const users = db.collection(config.get('mongodb.users_collection'));
 const storypoints = db.collection(config.get('mongodb.storypoints_collection'));
+const jwt_token_blacklist = db.collection(config.get('mongodb.token_blacklist_collection'));
 
 app.use(express.json());
 if (config.get('enable_cors')) {
@@ -118,7 +119,7 @@ app.post('/api/login', async (req, res) => {
 
 // user login via email and password
 app.post('/api/logout', async (req, res) => {
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('User not logged in')
     return
   }
@@ -128,7 +129,7 @@ app.post('/api/logout', async (req, res) => {
 
 // get user data
 app.get('/api/user', async (req, res) => {
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('User not logged in')
     return
   }
@@ -148,7 +149,7 @@ app.get('/api/user', async (req, res) => {
 
 // get base data of companies storypoints
 app.get('/api/company/:company_id/storypoints', async (req, res) => {
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('User not logged in')
     return
   }
@@ -172,7 +173,7 @@ app.get('/api/company/:company_id/storypoints', async (req, res) => {
 
 // get full data of company storypoint
 app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('User not logged in')
     return
   }
@@ -201,7 +202,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
 
 // get base data of all company users
 app.get('/api/company/:company_id/users', async (req, res) => {
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('User not logged in')
     return
   }
@@ -225,7 +226,7 @@ app.get('/api/company/:company_id/users', async (req, res) => {
 
 // get company user
 app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('User not logged in')
     return
   }
@@ -251,7 +252,7 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
 
 // add company storypoint
 app.post('/api/company/:company_id/storypoints', async (req, res) => {
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('User not logged in')
     return
   }
@@ -290,7 +291,7 @@ app.post('/api/company/:company_id/users', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('Current user not logged in')
     return
   }
@@ -326,7 +327,7 @@ app.post('/api/company/:company_id/users', async (req, res) => {
 
 // edit company storypoint
 app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('User not logged in')
     return
   }
@@ -357,7 +358,7 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
 
 // edit company user
 app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
-  if (!verifyJWT(req, res)) {
+  if (!(await verifyJWT(req, res))) {
     res.status(401).send('User not logged in')
     return
   }
