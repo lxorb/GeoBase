@@ -267,12 +267,13 @@ app.post('/api/company/:company_id/storypoints', async (req, res) => {
     history: undefined,
     files: undefined,
   }
-  await storypoints.insertOne(spnt)
+  const insertRes = await storypoints.insertOne(spnt)
+  const storypoint_id = insertRes.insertedId
   await companies.updateOne(
     { _id: new ObjectId(req.params.company_id) }, 
     { $push: { storypoint_ids: spnt._id } }
   )
-  res.status(201).send('Storypoint created')
+  res.status(201).json( {"storypoint_id": storypoint_id} )
 })
 
 // add company user
@@ -305,12 +306,13 @@ app.post('/api/company/:company_id/users', async (req, res) => {
     email: req.body["user"].email ? req.body["user"].email : '',
     password: await hashPassword(req.body["user"].password),
   }
-  await users.insertOne(usr)
+  const insertRes = await users.insertOne(usr)
+  const user_id = insertRes.insertedId
   await companies.updateOne(
     { _id: new ObjectId(req.params.company_id) }, 
     { $push: { user_ids: usr._id } }
   )
-  res.status(201).send('User created')
+  res.status(201).json({"user_id": user_id })
 })
 
 // edit company storypoint
