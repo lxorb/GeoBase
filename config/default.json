@@ -1,0 +1,17 @@
+{
+    "port": 3000,
+    "session_secret_key": "mysecret",
+    "enable_email_validation": true,
+    "enable_password_validation": true,
+    "enable_cors": true,
+    "save_uninitialized_sessions": true,
+    "resave_sessions": false,
+    "bcrypt_salt_rounds": 10,
+    "mongodb": {
+        "uri": "mongodb://localhost:27017",
+        "db_name": "geobase",
+        "companies_collection": "companies",
+        "users_collection": "users",
+        "storypoints_collection": "storypoints"
+    }
+}

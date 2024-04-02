@@ -1,36 +1,35 @@
 const express = require('express')
 const session = require('express-session');
-const bodyParser = require('body-parser');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const config = require('config');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express()
-const port = 3000
-const uri = 'mongodb://alessioc42.duckdns.org:27017'
-const db_name = 'geobase'
-const session_secret_key = 'your-secret-key'
 const emailRegex = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/i;
 const passwordRegex = /^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*|[a-zA-Z0-9]*)$/;
 
-const client = new MongoClient(uri);
+const client = new MongoClient(config.get('mongodb.uri'));
 
-const db = client.db(db_name);
-const companies = db.collection('companies');
-const users = db.collection('users');
-const storypoints = db.collection('storypoints');
+const db = client.db(config.get('mongodb.db_name'));
+const companies = db.collection(config.get('mongodb.companies_collection'));
+const users = db.collection(config.get('mongodb.users_collection'));
+const storypoints = db.collection(config.get('mongodb.storypoints_collection'));
 
 
 app.use(session({
-  secret: session_secret_key,
-  resave: false,
-  saveUninitialized: true
+  secret: config.get('session_secret_key'),
+  resave: config.get('resave_sessions'),
+  saveUninitialized: config.get('save_uninitialized_sessions'),
 }));
 app.use(express.json());
-app.use(cors());
+if (config.get('enable_cors')) {
+  app.use(cors());
+}
 
 async function hashPassword(password) {
-  const saltRounds = 10
+  const saltRounds = config.get('bcrypt_salt_rounds')
   const salt = await bcrypt.genSalt(saltRounds)
   const hash = await bcrypt.hash(password, salt)
   return hash
@@ -71,19 +70,19 @@ async function checkEmail(email, res) {
     res.status(409).send('Email already in use')
     return false;
   }
-  if (emailRegex.test(email)) {
-    return true;
-  } else {
+  if (config.get('enable_email_validation') && !emailRegex.test(email)) {
     res.status(400).send('Invalid email')
     return false;
   }
+  return true;
 }
 
 async function checkPasssword(password, res) {
-  if (passwordRegex.test(password)) {
+  if (config.get('enable_password_validation') && passwordRegex.test(password)) {
     res.status(400).send('Invalid password')
     return false;
   }
+  return true;
 }
 
 app.get('/api', async (req, res) => {
@@ -385,7 +384,7 @@ app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
 })
 
 
-app.listen(port, () => {
-  console.log(`GeoBase listening on port ${port}!`)
+app.listen(config.get('port'), () => {
+  console.log(`GeoBase listening on port ${config.get('port')}!`)
 })
 

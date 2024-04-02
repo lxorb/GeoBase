@@ -19,6 +19,7 @@
   "dependencies": {
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
+    "config": "^3.3.11",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "express-session": "^1.18.0",
