@@ -181,6 +181,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
   spnt = {
     id: spnt._id,
     created_at: spnt.created_at,
+    created_by: spnt.created_by,
     title: spnt.title,
     coords: spnt.coords,
     description: spnt.description
@@ -332,7 +333,8 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
   spnt = {
     ...spnt,
     title: req.body["storypoint"].title ? req.body["storypoint"].title : spnt.title,
-    description: req.body["storypoint"].description ? req.body["storypoint"].description : spnt.description
+    description: req.body["storypoint"].description ? req.body["storypoint"].description : spnt.description,
+    coords: req.body["storypoint"].coords ? req.body["storypoint"].coords : spnt.coords
   }
   await storypoints.updateOne(
     { _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) },
