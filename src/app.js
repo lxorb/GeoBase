@@ -1,4 +1,5 @@
 const express = require('express')
+const session = require('express-session');
 const bcrypt = require('bcrypt');
 const { MongoClient } = require('mongodb');
 
@@ -8,7 +9,7 @@ const uri = 'mongodb://localhost:27017'
 const db_name = 'test'
 const session_secret_key = 'your-secret-key'
 
-const client = new MongoClient(yourConnectionURI);
+const client = new MongoClient(uri);
 client.connect(err => {
   if (err) {
       console.error('Error connecting to MongoDB:', err);
@@ -86,15 +87,15 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', (req, res) => {
     res.status(404).send('Company not found')
     return
   }
-  const res = storypoints.find({ _id: req.params.storypoint_id, company_id: req.params.company_id })
-  if (res.length === 0) {
+  const queryResults = storypoints.find({ _id: req.params.storypoint_id, company_id: req.params.company_id })
+  if (queryResults.length === 0) {
     res.status(404).send('Storypoint not found')
     return
-  } else if (res.length > 1) {
+  } else if (queryResults.length > 1) {
     res.status(500).send('Multiple storypoints found')
     return
   }
-  let spnt = res[0]
+  let spnt = queryResults[0]
   res.json({"storypoint": spnt})
 })
 
@@ -121,15 +122,15 @@ app.get('/api/company/:company_id/users/:user_id', (req, res) => {
     res.status(404).send('Company not found')
     return
   }
-  const res = users.find({ _id: req.params.user_id, company_id: req.params.company_id })
-  if (res.length === 0) {
+  const queryResults = users.find({ _id: req.params.user_id, company_id: req.params.company_id })
+  if (queryResults.length === 0) {
     res.status(404).send('User not found')
     return
-  } else if (res.length > 1) {
+  } else if (queryResults.length > 1) {
     res.status(500).send('Multiple users found')
     return
   }
-  let usr = res[0]
+  let usr = queryResults[0]
   res.json({"user": usr})
 })
 
@@ -185,15 +186,15 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', (req, res) => {
     res.status(404).send('Company not found')
     return
   }
-  const res = storypoints.find({ _id: req.params.storypoint_id, company_id: req.params.company_id })
-  if (res.length === 0) {
+  const queryResults = storypoints.find({ _id: req.params.storypoint_id, company_id: req.params.company_id })
+  if (queryResults.length === 0) {
     res.status(404).send('Storypoint not found')
     return
-  } else if (res.length > 1) {
+  } else if (queryResults.length > 1) {
     res.status(500).send('Multiple storypoints found')
     return
   }
-  const spnt = res[0] // TODO: make only specific fields editable
+  const spnt = queryResults[0] // TODO: make only specific fields editable
   storypoints.updateOne(
     { _id: req.params.storypoint_id, company_id: req.params.company_id },
     { $set: spnt }
@@ -207,22 +208,21 @@ app.put('/api/company/:company_id/users/:user_id', (req, res) => {
     res.status(404).send('Company not found')
     return
   }
-  const res = users.find({ _id: req.params.user_id, company_id: req.params.company_id })
-  if (res.length === 0) {
+  const queryResults = users.find({ _id: req.params.user_id, company_id: req.params.company_id })
+  if (queryResults.length === 0) {
     res.status(404).send('User not found')
     return
-  } else if (res.length > 1) {
+  } else if (queryResults.length > 1) {
     res.status(500).send('Multiple users found')
     return
   }
-  const usr = res[0] // TODO: make only specific fields editable
+  const usr = queryResults[0] // TODO: make only specific fields editable
   users.updateOne(
     { _id: req.params.user_id, company_id: req.params.company_id },
     { $set: usr }
   )
   res.send('User updated')
 })
-
 
 
 app.listen(port, () => {
