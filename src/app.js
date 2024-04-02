@@ -1,5 +1,4 @@
-const express = require('express')
-const session = require('express-session');
+const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const config = require('config');
@@ -10,7 +9,6 @@ const emailRegex = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|
 const passwordRegex = /^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*|[a-zA-Z0-9]*)$/;
 
 const client = new MongoClient(config.get('mongodb.uri'));
-console.log(config.get('mongodb.uri'))
 client.connect()
 .then(() => { console.log('Connected to MongoDB') })
 .catch((error) => { console.error('Error connecting to MongoDB: ', error) });
@@ -19,12 +17,6 @@ const companies = db.collection(config.get('mongodb.companies_collection'));
 const users = db.collection(config.get('mongodb.users_collection'));
 const storypoints = db.collection(config.get('mongodb.storypoints_collection'));
 
-
-app.use(session({
-  secret: config.get('session_secret_key'),
-  resave: config.get('resave_sessions'),
-  saveUninitialized: config.get('save_uninitialized_sessions'),
-}));
 app.use(express.json());
 if (config.get('enable_cors')) {
   app.use(cors());
@@ -87,8 +79,25 @@ async function checkPasssword(password, res) {
   return true;
 }
 
+async function verifyJWT(req, res) {
+  if (!token) {
+    res.status(401).send('No auth token provided');
+    return false;
+  }
+  try {
+    const decoded = jwt.verify(req.headers["Authorization"], config.get('jwt_secret'));
+    req.user = decoded;
+    return true;
+  } catch (error) {
+    console.error('Error verifying JWT: ', error);
+    res.status(401).send('Invalid auth token');
+    return false;
+  }
+}
+
+
 app.get('/api', async (req, res) => {
-  res.send('やった、GeoBase APIが動いてる！')
+  res.send('やった、GeoBase APIが動いてる!')
 })
 
 // user login via email and password
@@ -102,27 +111,27 @@ app.post('/api/login', async (req, res) => {
     res.status(401).send('Incorrect password')
     return
   }
-  req.session.user_id = usr._id
-  res.send('User logged in')
+  const token = jwt.sign({ _id: usr._id, email: usr.email }, config.get('jwt_secret'));
+  res.json({ token: token });
 })
 
 // user login via email and password
 app.post('/api/logout', async (req, res) => {
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
     return
   }
-  req.session.destroy()
+  // TODO: invalidate token
   res.send('User logged out')
 })
 
 // get user data
 app.get('/api/user', async (req, res) => {
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
     return
   }
-  let usr = await users.findOne({ _id: req.session.user_id })
+  let usr = await users.findOne({ _id: req.user._id })
   if (usr === null) {
     res.status(404).send('User not found')
     return
@@ -141,15 +150,14 @@ app.get('/api/company/:company_id/storypoints', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
     return
   }
-  if (!(await users.findOne({ _id: req.session.user_id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
-  console.log(req.params.company_id)
   let spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
   spnts = spnts.map(spnt => {
     return {
@@ -166,11 +174,11 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
     return
   }
-  if (!(await users.findOne({ _id: req.session.user_id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -195,11 +203,11 @@ app.get('/api/company/:company_id/users', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
     return
   }
-  if (!(await users.findOne({ _id: req.session.user_id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -219,11 +227,11 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
     return
   }
-  if (!(await users.findOne({ _id: req.session.user_id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -245,11 +253,11 @@ app.post('/api/company/:company_id/storypoints', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
     return
   }
-  if (!(await users.findOne({ _id: req.session.user_id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -281,11 +289,11 @@ app.post('/api/company/:company_id/users', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('Current user not logged in')
     return
   }
-  if (!(await users.findOne({ _id: req.session.user_id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('Current user not part of company')
     return
   }
@@ -320,11 +328,11 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
     return
   }
-  if (!(await users.findOne({ _id: req.session.user_id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }
@@ -351,11 +359,11 @@ app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
-  if (!req.session.user_id) {
+  if (!verifyJWT(req, res)) {
     res.status(401).send('User not logged in')
     return
   }
-  if (!(await users.findOne({ _id: req.session.user_id, company_id: new ObjectId(req.params.company_id) }))) {
+  if (!(await users.findOne({ _id: req.user._id, company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('User not part of company')
     return
   }

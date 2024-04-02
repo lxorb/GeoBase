@@ -22,8 +22,8 @@
     "config": "^3.3.11",
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "express-session": "^1.18.0",
     "express-sessions": "^1.0.1",
+    "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.5.0"
   },
   "devDependencies": {
