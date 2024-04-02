@@ -4,30 +4,8 @@
             "created_at": 0,
             "name": "Warm House Inc.",
             "description": "Wir verkaufen Heizungen.",
-            "users": [
-                {
-                    "created_at": 0,
-                    "fullname": "Alessio Caputo",
-                    "email": "",
-                    "password": "1234"
-                },
-                {
-                    "created_at": 0,
-                    "fullname": "Emil Vinu",
-                    "email": "emil.alexander.vinu@gmail.com",
-                    "password": "1234"
-                }
-            ],
-            "storypoints": [
-                {
-                    "created_at": 0,
-                    "coords": [1, 1],
-                    "description": "bla bla bla",
-                    "images": [],
-                    "history": [],
-                    "files": []
-                }
-            ]
+            "user_ids": [],
+            "storypoint_ids": []
         }
     ]
 }
