@@ -274,6 +274,7 @@ app.post('/api/company/:company_id/storypoints', async (req, res) => {
   }
   const spnt = {
     created_at: await getUnixTime(),
+    created_by: new ObjectId(req.user._id),
     company_id: new ObjectId(req.params.company_id),
     coords: req.body["storypoint"].coords,
     title: req.body["storypoint"].title ? req.body["storypoint"].title : req.body["storypoint"].coords.toString(),
@@ -327,6 +328,51 @@ app.post('/api/company/:company_id/users', async (req, res) => {
     { $push: { user_ids: usr._id } }
   )
   res.status(201).json({"user_id": user_id })
+})
+
+// register new company
+app.post('/api/company', async (req, res) => {
+  if (await verifyJWT(req, res)) {
+    res.status(403).send('User already logged in')
+    return
+  }
+  if (!( await checkEmail(req.body["company"].email, res))) {
+    return
+  }
+  if (!(await checkPasssword(req.body["company"].password, res))) {
+    return
+  }
+  if (await companies.findOne({ name: req.body["company"].name }) !== null) {
+    res.status(409).send('Company with this name already exists')
+    return
+  }
+  const company = {
+    created_at: await getUnixTime(),
+    name: req.body["company"].name,
+    description: req.body["company"].description ? req.body["company"].description : '',
+    storypoint_ids: [],
+    user_ids: []
+  }
+  const insertResCmp = await companies.insertOne(company)
+  const company_id = insertResCmp.insertedId
+
+  const usr = {
+    created_at: await getUnixTime(),
+    company_id: new ObjectId(company_id),
+    fullname: req.body["company"].fullname,
+    email: req.body["company"].email,
+    password: await hashPassword(req.body["company"].password),
+  }
+  const insertResUsr = await users.insertOne(usr)
+  const user_id = insertResUsr.insertedId
+
+  await companies.updateOne(
+    { _id: new ObjectId(company_id) }, 
+    { $push: { user_ids: new ObjectId(user_id) } }
+  )
+  const token = jwt.sign({ _id: usr._id, email: usr.email }, config.get('jwt_secret'));
+
+  res.status(201).json({"company_id": company_id, "user_id": user_id, "token": token })
 })
 
 // edit company storypoint
@@ -399,6 +445,55 @@ app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
   res.send('User updated')
 })
 
+// delete company storypoint
+app.delete('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  const spnt = await storypoints.findOne({ _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) })
+  if (spnt === null) {
+    res.status(404).send('Storypoint not found')
+    return
+  }
+  await storypoints.deleteOne({ _id: new ObjectId(req.params.storypoint_id) })
+  await companies.updateOne(
+    { _id: new ObjectId(req.params.company_id) }, 
+    { $pull: { storypoint_ids: new ObjectId(req.params.storypoint_id) } }
+  )
+  res.send('Storypoint deleted')
+})
+
+// delete company user
+app.delete('/api/company/:company_id/users/:user_id', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  const usr = await users.findOne({ _id: new ObjectId(req.params.user_id), company_id: new ObjectId(req.params.company_id) })
+  if (usr === null) {
+    res.status(404).send('User not found')
+    return
+  }
+  await users.deleteOne({ _id: new ObjectId(req.params.user_id) })
+  await companies.updateOne(
+    { _id: new ObjectId(req.params.company_id) }, 
+    { $pull: { user_ids: new ObjectId(req.params.user_id) } }
+  )
+  res.send('User deleted')
+})
 
 app.listen(config.get('port'), () => {
   console.log(`GeoBase listening on port ${config.get('port')}!`)
