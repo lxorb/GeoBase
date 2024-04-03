@@ -129,7 +129,11 @@ async function checkPasssword(password: string, res: Response) {
   return true;
 }
 
-async function checkFilename(filename: string, res: Response) {
+async function checkFilename(filename: any, res: Response) {
+  if (typeof filename !== 'string') {
+    res.status(400).send('Filename must be a string')
+    return false;
+  }
   if (config.get('enable_filename_validation') && !filenameRegex.test(filename)) {
     res.status(400).send('Invalid filename')
     return false;
@@ -730,13 +734,16 @@ app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.sin
     res.status(409).send('File with that name already exists at the specified storypoint')
     return
   }
-
-  if (!(await checkFilename(req.file.originalname, res))) {
+  if (req.file.size > (config.get('max_upload_file_size') as number)) {
+    res.status(400).send('File too large')
+    return
+  }
+  if (!(await checkFilename(req.query.filename, res))) {
     return
   }
 
   const readStream = fs.createReadStream(req.file.path);
-  const uploadStream = bucket.openUploadStream(req.file.originalname);
+  const uploadStream = bucket.openUploadStream(req.query.filename as string);
 
   uploadStream.on('finish', () => {
     fs.unlinkSync(req.file.path);
