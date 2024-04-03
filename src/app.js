@@ -8,6 +8,7 @@ const Fuse = require('fuse.js')
 const multer = require('multer');
 const sharp = require('sharp');
 const fs = require('fs');
+const archiver = require('archiver')
 
 if (config.get('jwt_secret') === 'mysecret') {
   console.warn('Warning: JWT secret is default and should be changed in production');
@@ -728,6 +729,58 @@ app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.sin
 
   readStream.pipe(uploadStream);
 });
+
+// Download storypoint files as archive (zip)
+app.get('/api/company/:company_id/storypoints/:storypoint_id/files/archive', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await storypointExists(req.params.storypoint_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  const spnt = await storypoints.findOne({ _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) })
+  if (spnt === null) {
+    res.status(404).send('Storypoint not found')
+    return
+  }
+
+  let sptnFiles = await files.find({ _id: { $in: spnt.files } }).toArray()
+  sptnFiles = sptnFiles.map(file => {
+    return {
+      id: file._id,
+      filename: file.filename,
+      created_by: file.created_by
+    }
+  })
+
+  const zipPath = `${config.get('temp_dir')}/${req.params.storypoint_id}.zip`
+  const output = fs.createWriteStream(zipPath)
+  const archive = archiver(config.get('archiver_format'), {
+    zlib: { level: config.get('archiver_compression_level') }
+  })
+
+  output.on('close', () => {
+    res.download(zipPath, `${spnt.title}.zip`, () => {
+      fs.unlinkSync(zipPath)
+    })
+  })
+
+  archive.pipe(output)
+
+  sptnFiles.forEach(file => {
+    const downloadStream = bucket.openDownloadStream(new ObjectId(file.id))
+    archive.append(downloadStream, { name: file.filename })
+  })
+
+  archive.finalize()
+})
 
 // Download file from Storypoint files
 app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id', async (req, res) => {
