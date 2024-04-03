@@ -51,11 +51,14 @@ if (!fs.existsSync(config.get('temp_dir'))) {
   console.log('Temp directory already exists');
 }
 
-
 app.use(express.json());
 if (config.get('enable_cors')) {
   app.use(cors());
 }
+app.use((err: Error, req: Request, res: Response, next: any) => { 
+  console.error('Error: ', err.stack);
+  res.status(500).send('Something broke!');
+})
 
 async function hashPassword(password: string) {
   const saltRounds: number = config.get('bcrypt_salt_rounds')
