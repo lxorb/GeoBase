@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/app.js",
   "scripts": {
-    "dev": "nodemon src/app.js",
+    "dev": "nodemon src/app.ts",
     "build": "tsc",
     "start": "pm2 start dist/app.js --name geobase && pm2 log geobase",
     "stop": "pm2 stop geobase && pm2 delete geobase",
