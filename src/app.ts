@@ -243,8 +243,7 @@ app.post('/api/logout', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
-  req.user = req.user as User;
-  await blacklistJWT(req.headers["authorization"] ? req.headers["authorization"].replace('Bearer ', "") : '')
+  await blacklistJWT(req.headers["authorization"] as string)
   res.send('User logged out')
 })
 
