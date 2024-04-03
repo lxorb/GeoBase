@@ -702,7 +702,9 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files', async (req:
     return {
       _id: file._id,
       filename: file.filename,
-      created_by: file.created_by
+      created_by: file.created_by,
+      filesize: file.length,
+      created_at: file.uploadDate.getTime() / 1000
     }
   })
   res.json({ "files": sptnFiles })
