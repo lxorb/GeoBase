@@ -908,7 +908,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/thum
     return
   }
   
-  let thumbnailPath;
+  let thumbnailPath: string = '';
   try {
     thumbnailPath = await saveImageThumbnail(req.params.file_id, config.get('thumbnail_width'), config.get('thumbnail_height'))
   } catch (error) {
@@ -917,13 +917,18 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/thum
     return
   }
   
-  const downloadStream = fs.createReadStream(thumbnailPath as unknown as string)
+  const downloadStream = fs.createReadStream(thumbnailPath);
 
   downloadStream.on('error', () => {
     res.status(500).send('Error downloading image thumbnail');
+    fs.unlinkSync(thumbnailPath);
   });
 
-  downloadStream.pipe(res)
+  downloadStream.on('close', () => {
+    fs.unlinkSync(thumbnailPath);
+  });
+
+  downloadStream.pipe(res);
 })
 
 // Rename file from Storypoint files
