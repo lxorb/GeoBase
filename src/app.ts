@@ -793,12 +793,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/archive', asy
     return
   }
 
-  const sptnFilesQuery = await files.find({ _id: { $in: spnt.files } }).toArray()
-  const sptnFiles = sptnFilesQuery.map((file: any) => {
-    return {
-      filename: file.filename
-    }
-  })
+  const sptnFiles = await files.find({ _id: { $in: spnt.files } }).toArray()
 
   const zipPath = `${config.get('temp_dir')}/${req.params.storypoint_id}.zip`
   const output = fs.createWriteStream(zipPath)
