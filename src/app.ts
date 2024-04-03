@@ -30,7 +30,7 @@ const companies = db.collection(config.get('mongodb.companies_collection'));
 const users = db.collection(config.get('mongodb.users_collection'));
 const storypoints = db.collection(config.get('mongodb.storypoints_collection'));
 const jwt_token_blacklist = db.collection(config.get('mongodb.token_blacklist_collection'));
-const files = db.collection(config.get('mongodb.fsgrid_files_collection'));
+const files = db.collection(config.get('mongodb.fsgrid_files_collection') + '.files');
 
 const bucket = new GridFSBucket(db, {
   bucketName: config.get('mongodb.fsgrid_files_collection')
