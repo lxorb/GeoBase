@@ -194,31 +194,36 @@ async function calculateDistance(coordsA: Coordinates, coordsB: Coordinates) {
   return distance; // in km
 }
 
-async function saveImageThumbnail(file_id: string, width: number, height: number) {
-  const downloadStream = bucket.openDownloadStream(new ObjectId(file_id))
-  const thumbnailPath = `${config.get('temp_dir')}/${file_id}.thumbnail`
-  const writeStream = fs.createWriteStream(thumbnailPath)
+async function saveImageThumbnail(file_id: string, width: number, height: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const downloadStream = bucket.openDownloadStream(new ObjectId(file_id));
+    const thumbnailPath = `${config.get('temp_dir')}/${file_id}`;
+    const writeStream = fs.createWriteStream(`${thumbnailPath}.file`);
 
-  downloadStream.pipe(writeStream)
+    downloadStream.on('error', (error: Error) => {
+      console.error('Error downloading file from GridFS: ', error);
+      reject(error);
+    });
 
-  downloadStream.on('error', (error: Error) => {
-    console.error('Error downloading file from GridFS: ', error);
-  });
+    writeStream.on('error', (error: Error) => {
+      console.error('Error writing file to disk: ', error);
+      reject(error);
+    });
 
-  writeStream.on('error', (error: Error) => {
-    console.error('Error writing file to disk: ', error);
-  });
-
-  writeStream.on('finish', async () => {
-    try {
-      await sharp(thumbnailPath)
-          .resize(width, height)
-          .toFile(thumbnailPath);
-      return thumbnailPath;
-    } catch (error) {
+    writeStream.on('finish', async () => {
+      try {
+        await sharp(`${thumbnailPath}.file`)
+            .resize(width, height)
+            .toFile(`${thumbnailPath}`);
+        resolve(thumbnailPath);
+      } catch (error) {
         console.error('Error generating image thumbnail: ', error);
-    }
-  })
+        reject(error);
+      }
+    });
+
+    downloadStream.pipe(writeStream);
+  });
 }
 
 
@@ -898,11 +903,11 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/thum
     res.status(404).send('File not found at this storypoint')
     return
   } 
-  if ((config.get('image_file_endings') as string[]).some((ending: string) => file.filename.toLowerCase().endsWith(ending.toLowerCase()))) {
+  if (!(config.get('image_file_endings') as string[]).some((ending: string) => file.filename.toLowerCase().endsWith(ending.toLowerCase()))) {
     res.status(400).send('File is not an image type')
     return
   }
-
+  
   let thumbnailPath;
   try {
     thumbnailPath = await saveImageThumbnail(req.params.file_id, config.get('thumbnail_width'), config.get('thumbnail_height'))
