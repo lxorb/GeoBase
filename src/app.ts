@@ -787,12 +787,10 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/archive', asy
     return
   }
 
-  let sptnFiles = await files.find({ _id: { $in: spnt.files } }).toArray()
-  sptnFiles = sptnFiles.map((file: any) => {
+  const sptnFilesQuery = await files.find({ _id: { $in: spnt.files } }).toArray()
+  const sptnFiles = sptnFilesQuery.map((file: any) => {
     return {
-      _id: file._id,
-      filename: file.filename,
-      created_by: file.created_by
+      filename: file.filename
     }
   })
 
