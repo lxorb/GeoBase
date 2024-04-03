@@ -22,9 +22,10 @@ npm run dev
 For production, use:
 
 ```bash
-npm run prod-start // starts the server utilizing pm2
-npm run prod-restart // restarts the server
-npm run prod-stop // stops the server
+npm run build // must be run before start
+npm run start // starts the server utilizing pm2
+npm run restart // restarts the server
+npm run stop // stops the server
 ```
 
 Feel free to configure those commands to your needs.
