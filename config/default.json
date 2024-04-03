@@ -10,6 +10,17 @@
     "temp_dir": "temp/",
     "nearby_search_storypoints_radius_km": 50,
     "nearby_search_storypoints_limit": 15,
+    "image_file_endings": [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".svg",
+        ".tiff"
+    ],
+    "thumbnail_width": 200,
+    "thumbnail_height": 200,
     "mongodb": {
         "uri": "mongodb://localhost:27017",
         "db_name": "geobase",

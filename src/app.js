@@ -784,6 +784,49 @@ app.delete('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id',
   res.send('File deleted')
 });
 
+// Download file thumbnail from Storypoint files
+app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/thumbnail', async (req, res) => {
+  if (!(await verifyJWT(req, res))) {
+    return
+  }
+  if (!(await companyExists(req.params.company_id, res))) {
+    return
+  }
+  if (!(await storypointExists(req.params.storypoint_id, res))) {
+    return
+  }
+  if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
+    res.status(403).send('User not part of company')
+    return
+  }
+  const file = await files.findOne({ _id: new ObjectId(req.params.file_id), storypoint_id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id)})
+  if (!(file)) {
+    res.status(404).send('File not found at this storypoint')
+    return
+  } 
+  if (config.get('image_file_endings').some(ending => file.filename.toLowerCase().endsWith(ending.toLowerCase()))) {
+    res.status(400).send('File is not an image type')
+    return
+  }
+
+  let thumbnailPath;
+  try {
+    thumbnailPath = await saveImageThumbnail(req.params.file_id, config.get('thumbnail_width'), config.get('thumbnail_height'))
+  } catch (error) {
+    console.error('Error generating image thumbnail: ', error);
+    res.status(500).send('Error generating image thumbnail')
+    return
+  }
+  
+  const downloadStream = fs.createReadStream(thumbnailPath)
+
+  downloadStream.on('error', () => {
+    res.status(500).send('Error downloading image thumbnail');
+  });
+
+  downloadStream.pipe(res)
+})
+
 // Rename file from Storypoint files
 app.put('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/rename', async (req, res) => {
   if (!(await verifyJWT(req, res))) {
