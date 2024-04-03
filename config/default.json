@@ -7,7 +7,7 @@
     "enable_cors": true,
     "bcrypt_salt_rounds": 10,
     "uploads_dir": "uploads/",
-    "max_upload_file_size": 100000000,
+    "max_upload_file_size": 10000000,
     "temp_dir": "temp/",
     "nearby_search_storypoints_radius_km": 50,
     "nearby_search_storypoints_limit": 15,
