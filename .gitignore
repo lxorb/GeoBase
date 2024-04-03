@@ -1,5 +1,6 @@
 # Custom
 config/local.json
+.vscode/
 
 
 # Logs

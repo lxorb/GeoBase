@@ -31,7 +31,6 @@
         "storypoints_collection": "storypoints",
         "token_blacklist_collection": "jwt_token_blacklist",
         "fsgrid_files_collection": "fs.files",
-        "fsgrid_chunk_collection": "fs.chunks",
         "use_authentication": false
     },
     "fuseOptions": {

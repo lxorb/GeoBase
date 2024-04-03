@@ -2,12 +2,13 @@
   "name": "geobase",
   "version": "1.0.0",
   "description": "",
-  "main": "src/app.js",
+  "main": "dist/app.js",
   "scripts": {
     "dev": "nodemon src/app.js",
-    "prod-start": "pm2 start src/app.js --name geobase && pm2 log geobase",
-    "prod-stop": "pm2 stop geobase && pm2 delete geobase",
-    "prod-restart": "pm2 restart geobase && pm2 log geobase"
+    "build": "tsc",
+    "start": "pm2 start dist/app.js --name geobase && pm2 log geobase",
+    "stop": "pm2 stop geobase && pm2 delete geobase",
+    "restart": "pm2 restart geobase && pm2 log geobase"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,7 @@
   },
   "homepage": "https://github.com/SirPythonPhoenix/GeoBase#readme",
   "dependencies": {
+    "archiver": "^7.0.1",
     "bcrypt": "^5.1.1",
     "config": "^3.3.11",
     "cors": "^2.8.5",
@@ -32,6 +34,16 @@
     "sharp": "^0.33.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "@types/archiver": "^6.0.2",
+    "@types/bcrypt": "^5.0.2",
+    "@types/config": "^3.3.4",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^20.12.3",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.3"
   }
 }

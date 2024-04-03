@@ -1,20 +1,22 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const cors = require('cors');
-const bcrypt = require('bcrypt');
-const config = require('config');
-const { MongoClient, ObjectId, GridFSBucket } = require('mongodb');
-const Fuse = require('fuse.js')
-const multer = require('multer');
-const sharp = require('sharp');
-const fs = require('fs');
-const archiver = require('archiver')
+import { Coordinates, Storypoint, User, File } from "./types";
+
+import express, { Express, Request, Response } from "express";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import cors from "cors";
+import bcrypt from "bcrypt";
+import config from "config";
+import { MongoClient, ObjectId, GridFSBucket, PullOperator  } from 'mongodb';
+import Fuse from 'fuse.js';
+import multer from 'multer';
+import sharp from 'sharp';
+import fs from 'fs';
+import archiver from 'archiver';
 
 if (config.get('jwt_secret') === 'mysecret') {
   console.warn('Warning: JWT secret is default and should be changed in production');
 }
 
-const app = express()
+const app: Express = express()
 const emailRegex = /^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])$/i;
 const passwordRegex = /^(.{0,7}|[^0-9]*|[^A-Z]*|[^a-z]*|[a-zA-Z0-9]*)$/;
 const filenameRegex = /^[\w\-. ]+$/;
@@ -22,7 +24,7 @@ const filenameRegex = /^[\w\-. ]+$/;
 const client = new MongoClient(config.get('mongodb.uri'));
 client.connect()
 .then(() => { console.log('Connected to MongoDB') })
-.catch((error) => { console.error('Error connecting to MongoDB: ', error) });
+.catch((error: Error) => { console.error('Error connecting to MongoDB: ', error) });
 const db = client.db(config.get('mongodb.db_name'));
 const companies = db.collection(config.get('mongodb.companies_collection'));
 const users = db.collection(config.get('mongodb.users_collection'));
@@ -31,8 +33,7 @@ const jwt_token_blacklist = db.collection(config.get('mongodb.token_blacklist_co
 const files = db.collection(config.get('mongodb.fsgrid_files_collection'));
 
 const bucket = new GridFSBucket(db, {
-  bucketName: config.get('mongodb.fsgrid_files_collection'),
-  chunkCollectionName: config.get('mongodb.fsgrid_chunk_collection')
+  bucketName: config.get('mongodb.fsgrid_files_collection')
 })
 
 if (!fs.existsSync(config.get('uploads_dir'))) {
@@ -56,14 +57,14 @@ if (config.get('enable_cors')) {
   app.use(cors());
 }
 
-async function hashPassword(password) {
-  const saltRounds = config.get('bcrypt_salt_rounds')
+async function hashPassword(password: string) {
+  const saltRounds: number = config.get('bcrypt_salt_rounds')
   const salt = await bcrypt.genSalt(saltRounds)
   const hash = await bcrypt.hash(password, salt)
   return hash
 }
 
-async function comparePasswords(plainPwd, hashedPwd) {
+async function comparePasswords(plainPwd: string, hashedPwd: string) {
   try {
       const match = await bcrypt.compare(plainPwd, hashedPwd);
       return match;
@@ -76,7 +77,7 @@ async function getUnixTime() {
   return Math.floor(Date.now() / 1000)
 }
 
-async function companyExists(company_id, res) {
+async function companyExists(company_id: string, res: Response) {
   let company;
   try {
     company = await companies.findOne({ _id: new ObjectId(company_id) });
@@ -92,7 +93,7 @@ async function companyExists(company_id, res) {
   return true
 }
 
-async function storypointExists(company_id, res) {
+async function storypointExists(company_id: string, res: Response) {
   let storypoint;
   try {
     storypoint = await storypoints.findOne({ _id: new ObjectId(company_id) });
@@ -108,7 +109,7 @@ async function storypointExists(company_id, res) {
   return true
 }
 
-async function checkEmail(email, res) {
+async function checkEmail(email: string, res: Response) {
   if (await users.findOne({ email: email }) !== null) {
     res.status(409).send('Email already in use')
     return false;
@@ -120,7 +121,7 @@ async function checkEmail(email, res) {
   return true;
 }
 
-async function checkPasssword(password, res) {
+async function checkPasssword(password: string, res: Response) {
   if (config.get('enable_password_validation') && passwordRegex.test(password)) {
     res.status(400).send('Invalid password')
     return false;
@@ -128,7 +129,7 @@ async function checkPasssword(password, res) {
   return true;
 }
 
-async function checkFilename(filename, res) {
+async function checkFilename(filename: string, res: Response) {
   if (config.get('enable_filename_validation') && !filenameRegex.test(filename)) {
     res.status(400).send('Invalid filename')
     return false;
@@ -136,7 +137,7 @@ async function checkFilename(filename, res) {
   return true;
 }
 
-async function verifyJWT(req, res) {
+async function verifyJWT(req: Request, res: Response) {
   if (!req.headers["authorization"]) {
     res.status(401).send('No auth token provided');
     return false;
@@ -147,8 +148,15 @@ async function verifyJWT(req, res) {
   }
   try {
     const relevantToken = (req.headers["authorization"]).replace('Bearer ', "");
-    const decoded = jwt.verify(relevantToken, config.get('jwt_secret'));
-    req.user = decoded;
+    const decoded = jwt.verify(relevantToken, config.get('jwt_secret')) as JwtPayload;
+    req.user = {
+      _id: decoded._id,
+      email: decoded.email,
+      fullname: '',
+      password: '',
+      created_at: 0,
+      company_id: new ObjectId()
+    };
     return true;
   } catch (error) {
     console.error('Error verifying JWT: ', error);
@@ -157,14 +165,14 @@ async function verifyJWT(req, res) {
   }
 }
 
-async function blacklistJWT(token) {
+async function blacklistJWT(token: string) {
   if (await jwt_token_blacklist.findOne({ token: token }) !== null) {
     return
   }
   await jwt_token_blacklist.insertOne({ token: token })
 }
 
-async function calculateDistance(coordsA, coordsB) {
+async function calculateDistance(coordsA: Coordinates, coordsB: Coordinates) {
   const R = 6371; // earth radius in km
   const [latA, lonA] = coordsA;
   const [latB, lonB] = coordsB;
@@ -179,18 +187,18 @@ async function calculateDistance(coordsA, coordsB) {
   return distance; // in km
 }
 
-async function saveImageThumbnail(file_id, width, height) {
+async function saveImageThumbnail(file_id: string, width: number, height: number) {
   const downloadStream = bucket.openDownloadStream(new ObjectId(file_id))
   const thumbnailPath = `${config.get('temp_dir')}/${file_id}.thumbnail`
   const writeStream = fs.createWriteStream(thumbnailPath)
 
   downloadStream.pipe(writeStream)
 
-  downloadStream.on('error', (error) => {
+  downloadStream.on('error', (error: Error) => {
     console.error('Error downloading file from GridFS: ', error);
   });
 
-  writeStream.on('error', (error) => {
+  writeStream.on('error', (error: Error) => {
     console.error('Error writing file to disk: ', error);
   });
 
@@ -207,12 +215,12 @@ async function saveImageThumbnail(file_id, width, height) {
 }
 
 
-app.get('/api', async (req, res) => {
+app.get('/api', async (req: Request, res: Response) => {
   res.send('やった、GeoBase APIが動いてる!')
 })
 
 // user login via email and password
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', async (req: Request, res: Response) => {
   const usr = await users.findOne({ email : req.body["user"].email })
   if (usr === null) {
     res.status(404).send('User not found')
@@ -227,26 +235,28 @@ app.post('/api/login', async (req, res) => {
 })
 
 // user login via email and password
-app.post('/api/logout', async (req, res) => {
+app.post('/api/logout', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
-  await blacklistJWT(req.headers["authorization"].replace('Bearer ', ""))
+  req.user = req.user as User;
+  await blacklistJWT(req.headers["authorization"] ? req.headers["authorization"].replace('Bearer ', "") : '')
   res.send('User logged out')
 })
 
 // get user data
-app.get('/api/user', async (req, res) => {
+app.get('/api/user', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   let usr = await users.findOne({ _id: new ObjectId(req.user._id) })
   if (usr === null) {
     res.status(404).send('User not found')
     return
   }
   usr = {
-    id: usr._id,
+    _id: usr._id,
     fullname: usr.fullname,
     email: usr.email,
     company_id: usr.company_id
@@ -255,10 +265,11 @@ app.get('/api/user', async (req, res) => {
 })
 
 // get base data of companies storypoints
-app.get('/api/company/:company_id/storypoints', async (req, res) => {
+app.get('/api/company/:company_id/storypoints', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -266,22 +277,27 @@ app.get('/api/company/:company_id/storypoints', async (req, res) => {
     res.status(403).send('User not part of company')
     return
   }
-  let spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
-  spnts = spnts.map(spnt => {
+  const spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray() as Storypoint[];
+  const spntsStripped = spnts.map((spnt: Storypoint) => {
     return {
-      id: spnt._id,
+      _id: spnt._id,
       title: spnt.title,
       coords: spnt.coords
     }
   })
-  res.json({"storypoints": spnts})
+  res.json({"storypoints": spntsStripped})
 })
 
 // search company storypoints
-app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
+app.get('/api/company/:company_id/storypoints/search', async (req: Request, res: Response) => {
+  if (!req.query.q || typeof req.query.q !== 'string') {
+    res.status(400).send('Missing search query')
+    return
+  }
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -291,22 +307,27 @@ app.get('/api/company/:company_id/storypoints/search', async (req, res) => {
   }
   const spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
   const fuse = new Fuse(spnts, config.get('fuseOptions'))
-  let result = fuse.search(req.query.q, config.get('fuseSearchOptions'))
-  result = result.map(spnt => {
+  const fuseResult = fuse.search(req.query.q, config.get('fuseSearchOptions'))
+  const strippedResult = fuseResult.map((spnt: any) => {
     return {
-      id: spnt.item._id,
+      _id: spnt.item._id,
       title: spnt.item.title,
       coords: spnt.item.coords
     }
   })
-  res.json({"storypoints": result})
+  res.json({"storypoints": strippedResult})
 })
 
 // calculate nearby company storypoints
-app.get('/api/company/:company_id/storypoints/nearby', async (req, res) => {
+app.get('/api/company/:company_id/storypoints/nearby', async (req: Request, res: Response) => {
+  if (!req.query.lat || !req.query.lng) {
+    res.status(400).send('Missing coordinates')
+    return
+  }
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -314,28 +335,30 @@ app.get('/api/company/:company_id/storypoints/nearby', async (req, res) => {
     res.status(403).send('User not part of company')
     return
   }
-  let spnts = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
-  spnts = spnts.map(spnt => {
-    const distance = calculateDistance(req.query.coords, spnt.coords)
+  const spntDocs = await storypoints.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
+  const coords: Coordinates = [parseFloat(req.query.lat as string), parseFloat(req.query.lng as string)]
+  let spnts = await Promise.all(spntDocs.map(async (spntDoc: any) => {
+    const distance = await calculateDistance(coords, spntDoc.coords)
     return {
-      id: spnt._id,
-      title: spnt.title,
-      coords: spnt.coords,
+      _id: spntDoc._id,
+      title: spntDoc.title,
+      coords: spntDoc.coords,
       distanceInKm: distance,
       distanceString: distance >= 1 ? `${distance.toFixed(1)} km` : `${Math.floor(distance * 1000)} m`
     }
-  })
-  spnts.sort((a, b) => a.distanceInKm - b.distanceInKm)
+  }))
+  spnts.sort((a: { distanceInKm: number }, b: { distanceInKm: number }) => a.distanceInKm! - b.distanceInKm!)
   spnts = spnts.slice(0, config.get('nearby_search_storypoints_limit'))
-  spnts.filter(spnt => spnt.distanceInKm <= config.get('nearby_search_storypoints_radius_km'))
+  spnts.filter((spnt: { distanceInKm: number }) => spnt.distanceInKm! <= (config.get('nearby_search_storypoints_radius_km') as number))
   res.json({"storypoints": spnts})
 })
 
 // get full data of company storypoint
-app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
+app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -349,7 +372,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
     return
   }
   spnt = {
-    id: spnt._id,
+    _id: spnt._id,
     created_at: spnt.created_at,
     created_by: spnt.created_by,
     title: spnt.title,
@@ -361,10 +384,11 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
 })
 
 // get base data of all company users
-app.get('/api/company/:company_id/users', async (req, res) => {
+app.get('/api/company/:company_id/users', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -373,9 +397,9 @@ app.get('/api/company/:company_id/users', async (req, res) => {
     return
   }
   let usrs = await users.find({ company_id: new ObjectId(req.params.company_id) }).toArray()
-  usrs = usrs.map(usr => {
+  usrs = usrs.map((usr: any) => {
     return {
-      id: usr._id,
+      _id: usr._id,
       fullname: usr.fullname,
       email: usr.email
     }
@@ -384,10 +408,11 @@ app.get('/api/company/:company_id/users', async (req, res) => {
 })
 
 // get company user
-app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
+app.get('/api/company/:company_id/users/:user_id', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -401,7 +426,7 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
     return
   }
   usr = {
-    id: usr._id,
+    _id: usr._id,
     fullname: usr.fullname,
     email: usr.email
   }
@@ -409,10 +434,11 @@ app.get('/api/company/:company_id/users/:user_id', async (req, res) => {
 })
 
 // add company storypoint
-app.post('/api/company/:company_id/storypoints', async (req, res) => {
+app.post('/api/company/:company_id/storypoints', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -438,19 +464,20 @@ app.post('/api/company/:company_id/storypoints', async (req, res) => {
   const storypoint_id = insertRes.insertedId
   await companies.updateOne(
     { _id: new ObjectId(req.params.company_id) }, 
-    { $push: { storypoint_ids: spnt._id } }
+    { $push: { storypoint_ids: new ObjectId(storypoint_id) as any } }
   )
   res.status(201).json( {"storypoint_id": storypoint_id} )
 })
 
 // add company user
-app.post('/api/company/:company_id/users', async (req, res) => {
+app.post('/api/company/:company_id/users', async (req: Request, res: Response) => {
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await users.findOne({ _id: new ObjectId(req.user._id), company_id: new ObjectId(req.params.company_id) }))) {
     res.status(403).send('Current user not part of company')
     return
@@ -476,13 +503,13 @@ app.post('/api/company/:company_id/users', async (req, res) => {
   const user_id = insertRes.insertedId
   await companies.updateOne(
     { _id: new ObjectId(req.params.company_id) }, 
-    { $push: { user_ids: usr._id } }
+    { $push: { user_ids: new ObjectId(user_id) as any } }
   )
   res.status(201).json({"user_id": user_id })
 })
 
 // register new company
-app.post('/api/company', async (req, res) => {
+app.post('/api/company', async (req: Request, res: Response) => {
   if (await verifyJWT(req, res)) {
     res.status(403).send('User already logged in')
     return
@@ -519,18 +546,19 @@ app.post('/api/company', async (req, res) => {
 
   await companies.updateOne(
     { _id: new ObjectId(company_id) }, 
-    { $push: { user_ids: new ObjectId(user_id) } }
+    { $push: { user_ids: new ObjectId(user_id) as any } }
   )
-  const token = jwt.sign({ _id: usr._id, email: usr.email }, config.get('jwt_secret'));
+  const token = jwt.sign({ _id: user_id, email: usr.email }, config.get('jwt_secret'));
 
   res.status(201).json({"company_id": company_id, "user_id": user_id, "token": token })
 })
 
 // edit company storypoint
-app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
+app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -558,10 +586,11 @@ app.put('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) 
 })
 
 // edit company user
-app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
+app.put('/api/company/:company_id/users/:user_id', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -598,10 +627,11 @@ app.put('/api/company/:company_id/users/:user_id', async (req, res) => {
 })
 
 // delete company storypoint
-app.delete('/api/company/:company_id/storypoints/:storypoint_id', async (req, res) => {
+app.delete('/api/company/:company_id/storypoints/:storypoint_id', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -617,16 +647,17 @@ app.delete('/api/company/:company_id/storypoints/:storypoint_id', async (req, re
   await storypoints.deleteOne({ _id: new ObjectId(req.params.storypoint_id) })
   await companies.updateOne(
     { _id: new ObjectId(req.params.company_id) }, 
-    { $pull: { storypoint_ids: new ObjectId(req.params.storypoint_id) } }
+    { $pull: { storypoint_ids: new ObjectId(req.params.storypoint_id) as any } }
   )
   res.send('Storypoint deleted')
 })
 
 // delete company user
-app.delete('/api/company/:company_id/users/:user_id', async (req, res) => {
+app.delete('/api/company/:company_id/users/:user_id', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -642,16 +673,17 @@ app.delete('/api/company/:company_id/users/:user_id', async (req, res) => {
   await users.deleteOne({ _id: new ObjectId(req.params.user_id) })
   await companies.updateOne(
     { _id: new ObjectId(req.params.company_id) }, 
-    { $pull: { user_ids: new ObjectId(req.params.user_id) } }
+    { $pull: { user_ids: new ObjectId(req.params.user_id) as any } }
   )
   res.send('User deleted')
 })
 
 // Get Storypoint file list
-app.get('/api/company/:company_id/storypoints/:storypoint_id/files', async (req, res) => {
+app.get('/api/company/:company_id/storypoints/:storypoint_id/files', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -666,9 +698,9 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files', async (req,
   }
   const fileIds = spnt.files
   let sptnFiles = await files.find({ _id: { $in: fileIds } }).toArray()
-  sptnFiles = sptnFiles.map(file => {
+  sptnFiles = sptnFiles.map((file: any) => {
     return {
-      id: file._id,
+      _id: file._id,
       filename: file.filename,
       created_by: file.created_by
     }
@@ -677,10 +709,11 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files', async (req,
 })
 
 // Upload file to Storypoint files
-app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.single('file'), async (req, res) => {
+app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.single('file'), async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -711,13 +744,13 @@ app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.sin
       { 
         storypoint_id: req.params.storypoint_id,
         company_id: req.params.company_id,
-        created_by: req.user._id
+        created_by: req.user?._id
       } 
     });
 
     storypoints.updateOne(
       { _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) },
-      { $push: { files: fileId } }
+      { $push: { files: fileId } as any }
     )
 
     res.send('File uploaded successfully');
@@ -731,10 +764,11 @@ app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.sin
 });
 
 // Download storypoint files as archive (zip)
-app.get('/api/company/:company_id/storypoints/:storypoint_id/files/archive', async (req, res) => {
+app.get('/api/company/:company_id/storypoints/:storypoint_id/files/archive', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -752,9 +786,9 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/archive', asy
   }
 
   let sptnFiles = await files.find({ _id: { $in: spnt.files } }).toArray()
-  sptnFiles = sptnFiles.map(file => {
+  sptnFiles = sptnFiles.map((file: any) => {
     return {
-      id: file._id,
+      _id: file._id,
       filename: file.filename,
       created_by: file.created_by
     }
@@ -774,8 +808,8 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/archive', asy
 
   archive.pipe(output)
 
-  sptnFiles.forEach(file => {
-    const downloadStream = bucket.openDownloadStream(new ObjectId(file.id))
+  sptnFiles.forEach((file: any) => {
+    const downloadStream = bucket.openDownloadStream(new ObjectId(file._id))
     archive.append(downloadStream, { name: file.filename })
   })
 
@@ -783,10 +817,11 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/archive', asy
 })
 
 // Download file from Storypoint files
-app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id', async (req, res) => {
+app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -811,10 +846,11 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id', as
 });
 
 // Delete file from Storypoint files
-app.delete('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id', async (req, res) => {
+app.delete('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -832,16 +868,17 @@ app.delete('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id',
   await files.deleteOne({ _id: new ObjectId(req.params.file_id) })
   await storypoints.updateOne(
     { _id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id) },
-    { $pull: { files: new ObjectId(req.params.file_id) } }
+    { $pull: { files: new ObjectId(req.params.file_id) } as any }
   )
   res.send('File deleted')
 });
 
 // Download file thumbnail from Storypoint files
-app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/thumbnail', async (req, res) => {
+app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/thumbnail', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
@@ -857,7 +894,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/thum
     res.status(404).send('File not found at this storypoint')
     return
   } 
-  if (config.get('image_file_endings').some(ending => file.filename.toLowerCase().endsWith(ending.toLowerCase()))) {
+  if ((config.get('image_file_endings') as string[]).some((ending: string) => file.filename.toLowerCase().endsWith(ending.toLowerCase()))) {
     res.status(400).send('File is not an image type')
     return
   }
@@ -871,7 +908,7 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/thum
     return
   }
   
-  const downloadStream = fs.createReadStream(thumbnailPath)
+  const downloadStream = fs.createReadStream(thumbnailPath as unknown as string)
 
   downloadStream.on('error', () => {
     res.status(500).send('Error downloading image thumbnail');
@@ -881,10 +918,11 @@ app.get('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/thum
 })
 
 // Rename file from Storypoint files
-app.put('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/rename', async (req, res) => {
+app.put('/api/company/:company_id/storypoints/:storypoint_id/files/:file_id/rename', async (req: Request, res: Response) => {
   if (!(await verifyJWT(req, res))) {
     return
   }
+  req.user = req.user as User;
   if (!(await companyExists(req.params.company_id, res))) {
     return
   }
