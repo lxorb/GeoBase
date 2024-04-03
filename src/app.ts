@@ -730,15 +730,15 @@ app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.sin
     res.status(403).send('User not part of company')
     return
   }
-  if (await files.findOne({ filename: req.query.filename, storypoint_id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id)})) {
-    res.status(409).send('File with that name already exists at the specified storypoint')
-    return
-  }
   if (req.file.size > (config.get('max_upload_file_size') as number)) {
     res.status(400).send('File too large')
     return
   }
   if (!(await checkFilename(req.query.filename, res))) {
+    return
+  }
+  if (await files.findOne({ filename: req.query.filename, storypoint_id: new ObjectId(req.params.storypoint_id) })) {
+    res.status(409).send('File with that name already exists at the specified storypoint')
     return
   }
 
@@ -751,9 +751,9 @@ app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.sin
 
     files.updateOne({ _id: fileId }, {$set: 
       { 
-        storypoint_id: req.params.storypoint_id,
-        company_id: req.params.company_id,
-        created_by: req.user?._id
+        storypoint_id: new ObjectId(req.params.storypoint_id),
+        company_id: new ObjectId(req.params.company_id),
+        created_by: new ObjectId(req.user?._id)
       } 
     });
 
