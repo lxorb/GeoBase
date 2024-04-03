@@ -730,7 +730,7 @@ app.post('/api/company/:company_id/storypoints/:storypoint_id/files', upload.sin
     res.status(403).send('User not part of company')
     return
   }
-  if (await files.findOne({ filename: req.file.originalname, storypoint_id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id)})) {
+  if (await files.findOne({ filename: req.query.filename, storypoint_id: new ObjectId(req.params.storypoint_id), company_id: new ObjectId(req.params.company_id)})) {
     res.status(409).send('File with that name already exists at the specified storypoint')
     return
   }
