@@ -1,60 +1,84 @@
 # GeoBase
 
-Welcome to GeoBase, your go-to solution for geographical data handling. 
-GeoBase is the backend of [GeoStorage](https://github.com/alessioC42/GeoStorage).
+**GeoBase** is the backend service powering [GeoStorage](https://github.com/alessioC42/GeoStorage). It handles all the heavy lifting like data storage, API endpoints, and user auth.
+GeoStorage is tool developed for a three day hackathon with [@alessioC42](https://github.com/alessioC42/). 
+
+---
 
 ### Getting Started
 
-To get started, first run the following commands to create a directory and load the repo.
+Clone the repo and install dependencies:
 
 ```bash
-git clone "https://github.com/SirPythonPhoenix/GeoBase/"
+git clone https://github.com/SirPythonPhoenix/GeoBase/
 cd GeoBase
 npm install
 ```
-Next up, use the following command to start a local dev-server. 
-You need to have mongodb set up and running or reference an external mongodb-server via the config file.
+
+Make sure you have **MongoDB** running locally, or point to a remote MongoDB instance in the config file.
+
+To start the development server:
 
 ```bash
 npm run dev
 ```
 
-For production, use:
+---
+
+### Production Setup
+
+Before running GeoBase in production, you’ll need to build the project:
 
 ```bash
-npm run build // must be run before start
-npm run start // starts the server utilizing pm2
-npm run restart // restarts the server
-npm run stop // stops the server
+npm run build
 ```
 
-Feel free to configure those commands to your needs.
-When exposing the backend, it's important to utilize encryption via SSL/TLS to protect user data and prevent potential data leaks.
+Then, use these commands to manage the server (uses [PM2](https://pm2.keymetrics.io/)):
+
+```bash
+npm run start      # Start the server
+npm run restart    # Restart the server
+npm run stop       # Stop the server
+```
+
+Feel free to tweak these scripts to fit your setup.
+
+> **Note:** If you're exposing GeoBase to the web, make sure to use HTTPS (SSL/TLS) to keep data secure.
+
+---
 
 ### Configuration
 
-GeoBase comes with standard configuration values, which can be found in `config/default.json`. However, you may need to customize these values according to your specific requirements. To do so, follow these steps:
+Default settings are in `config/default.json`. To customize:
 
-1. Create a new file at `config/local.json`.
-2. Specify the corresponding values you wish to overwrite in `config/local.json`.
-3. For example:
+1. Create a file named `config/local.json`
+2. Add or override the values you want to change.
+
+Example:
+
 ```json
 {
   "port": 9999,
-  "jwt_secret": "my_new_secret"
+  "jwt_secret": "my_super_secret_key"
 }
 ```
 
-### Specifying a jwt secret
+---
 
-You have already seen how to modify the config depending on your needs. We strongly recommend to change the jwt secret. To do so, run the following command:
+### Setting a JWT Secret
+
+Need a secure JWT secret? Generate one like this:
 
 ```bash
 gpg --armor --gen-random 2 32
 ```
 
-Copy stdout to your clipboard and adjust the config-file. You're ready to go now!
+Copy the output and paste it into your `config/local.json` under `jwt_secret`.
 
-### Final word
+---
 
-Happy mapping! 🌍
+### That’s it!
+
+You're all set. Go build something cool with GeoBase.
+
+Happy mapping! 🗺️
