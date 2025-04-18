@@ -2,6 +2,7 @@
 
 **GeoBase** is the backend service powering [GeoStorage](https://github.com/alessioC42/GeoStorage). It handles all the heavy lifting like data storage, API endpoints, and user auth.
 GeoStorage is tool developed for a three day hackathon with [@alessioC42](https://github.com/alessioC42/). 
+Well, the code is a bit spaghetti but it works. 
 
 ---
 
