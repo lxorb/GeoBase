@@ -1,8 +1,15 @@
 # GeoBase
 
-**GeoBase** is the backend service powering [GeoStorage](https://github.com/alessioC42/GeoStorage). It handles all the heavy lifting like data storage, API endpoints, and user auth.
-GeoStorage is tool developed for a three day hackathon with [@alessioC42](https://github.com/alessioC42/). 
-Well, the code is a bit spaghetti but it works. 
+**GeoBase** is the backend service powering [GeoStorage](https://github.com/alessioC42/GeoStorage). 
+GeoStorage is tool developed for a three day hackathon with [@alessioC42](https://github.com/alessioC42/). It lets you pin and store data (like text, files) at specific locations on a map. 
+
+This can be especially useful for things like:
+    - Store data for tradespeople, such as chimney sweeps or heating installers
+    - Creating interactive location-based notes or journals
+    - Collaborative fieldwork or research projects tied to geography
+    - Attaching files or documentation to physical landmarks
+
+Well, the code could be less 🍝. 
 
 ---
 
